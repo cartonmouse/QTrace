@@ -1,5 +1,7 @@
 # 问迹 QTrace：从空目录自主复现
 
+<p align="center"><img src="frontend/public/qtrace-icon.png" alt="问迹 QTrace 图标" width="160" /></p>
+
 这是学习用的独立重建工程，目标不是给上游项目打补丁，而是通过自己的代码逐步实现参考项目的核心用户体验和主要功能。
 
 ## 名称
