@@ -1076,3 +1076,10 @@
 - VPS 到 GitHub 的 HTTPS 拉取曾在 45 秒门限内超时；为完成本次启动，远端工作树应用了与已推送 `main` 等价的最小构建修复。这个状态已记录，网络恢复后必须用 `git pull --ff-only` 重新建立可追踪同步，不能把手工远端修补当成 GitHub 提交。
 - 本阶段没有读取或输出 API Key、JWT secret、真实简历、个人文档或浏览器密码；没有调用真实 LLM API，仅保留访问者自带 Key 的 BYOK 入口和无 Key 的 Stub 降级路径。
 - 生产化仍未完成：当前是公网 IP + HTTP 80，不是域名/HTTPS/高可用服务；还需要补齐限流、预算、监控、备份和更严格的 BYOK egress/SSRF 治理。
+
+## 阶段 97：首登模型配置暂时跳过
+
+- 用户希望保留模型配置表单，但允许没有 API Key 的访客先进入系统。本阶段在 Onboarding 两个步骤底部新增“暂时跳过，稍后在设置中填写”，没有移除 API Base、Model、API Key 字段，也没有改变真实连接测试。
+- 跳过状态按账号写入浏览器 localStorage，刷新页面可以继续浏览；退出登录时清除，避免一个账号的跳过状态影响另一个账号。后端仍会阻止未配置模型的训练/Agent 请求，前端可以引导用户前往模型设置。
+- 本地 `frontend` typecheck 通过，前端测试 `3 passed`，Vite build 通过（3809 modules）；没有读取或输出 API Key、真实资料，没有真实 LLM 请求。
+- 按用户要求，本阶段没有 commit/push GitHub，也没有更新或重启腾讯云 VPS；未来只有用户明确要求时才同步。

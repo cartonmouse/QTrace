@@ -1,6 +1,11 @@
 import { useState, useEffect, type ReactNode } from "react";
 import AuthContext, { type AuthUser } from "./AuthContextBase";
 
+function onboardingSkipKey(user: AuthUser | null) {
+  const identity = user?.id ?? user?.email ?? user?.username;
+  return identity ? `qtrace_onboarding_skipped:${String(identity)}` : null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(() =>
@@ -21,10 +26,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
+    const skipKey = onboardingSkipKey(user);
+    if (skipKey) localStorage.removeItem(skipKey);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setToken(null);
     setUser(null);
+    setNeedsOnboarding(false);
+  }
+
+  function skipOnboarding() {
+    const skipKey = onboardingSkipKey(user);
+    if (skipKey) localStorage.setItem(skipKey, "1");
     setNeedsOnboarding(false);
   }
 
@@ -43,7 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         const stored = localStorage.getItem("user");
-        if (stored) setUser(JSON.parse(stored));
+        const storedUser = stored ? (JSON.parse(stored) as AuthUser) : null;
+        if (storedUser) setUser(storedUser);
         if (settingsRes.ok) {
           const data = (await settingsRes.json()) as {
             configured?: { llm?: boolean; embedding?: boolean };
@@ -52,7 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
           const llmConfigured = data.configured?.llm ?? data.llm_configured ?? false;
           const embeddingConfigured = data.configured?.embedding ?? data.embedding_configured ?? false;
-          setNeedsOnboarding(!(llmConfigured && embeddingConfigured));
+          const skipKey = onboardingSkipKey(storedUser);
+          const skipped = Boolean(skipKey && localStorage.getItem(skipKey) === "1");
+          setNeedsOnboarding(!(llmConfigured && embeddingConfigured) && !skipped);
         }
       })
       .catch(() => {
@@ -74,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         needsOnboarding,
         setNeedsOnboarding,
+        skipOnboarding,
         login,
         logout,
       }}

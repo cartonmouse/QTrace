@@ -18,7 +18,7 @@ import Logo from "../components/Logo";
 // 首登引导：每个用户都得带自己的 key,这里两步把 LLM + Embedding 配齐。
 // 其余可选服务(语音/搜索/录音上传)留到设置页按需填。
 export default function Onboarding() {
-  const { setNeedsOnboarding, logout } = useAuth();
+  const { setNeedsOnboarding, skipOnboarding, logout } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -119,6 +119,12 @@ export default function Onboarding() {
       setError("保存失败：" + e.message);
       setSaving(false);
     }
+  }
+
+  function handleSkip() {
+    setError("");
+    skipOnboarding();
+    navigate("/profile", { replace: true });
   }
 
   const labelClass = "text-[11px] font-semibold uppercase tracking-[0.18em] text-dim/80";
@@ -264,6 +270,16 @@ export default function Onboarding() {
                   </Button>
                 )}
               </div>
+            )}
+            {!loading && (
+              <button
+                type="button"
+                data-testid="skip-onboarding"
+                onClick={handleSkip}
+                className="mt-4 w-full text-center text-sm text-dim transition-colors hover:text-primary hover:underline underline-offset-4 cursor-pointer"
+              >
+                暂时跳过，稍后在设置中填写
+              </button>
             )}
           </CardContent>
         </Card>

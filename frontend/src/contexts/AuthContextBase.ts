@@ -13,6 +13,7 @@ export interface AuthContextValue {
   loading: boolean;
   needsOnboarding: boolean;
   setNeedsOnboarding: (value: boolean) => void;
+  skipOnboarding: () => void;
   login: (token: string, userData: AuthUser) => void;
   logout: () => void;
 }

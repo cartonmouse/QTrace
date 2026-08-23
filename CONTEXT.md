@@ -392,3 +392,7 @@ scripts/embedding_eval.py 使用固定的四份合成技术文档、四个查询
 阶段 96 已完成新 QTrace VPS 的公网浏览器验收：公网 IPv4 为 `49.232.104.202`，安全组已有 TCP 80 规则，远端 Web 运行时通过 `QTRACE_DEMO_PORT=80` 映射到主机 80。Compose 中 API 为 healthy，Nginx 首页与同源 `/api/health` 在服务器内返回 200；从外部 Chrome 打开 `http://49.232.104.202/` 后进入 `/login`，页面标题为“问迹 QTrace · 个性化面试训练”。这才是“其他人能通过浏览器打开”的证据，和本机 curl、私网地址或镜像构建证据区分开。
 
 本次 VPS 到 GitHub 的 HTTPS 拉取遇到超时，部署时对远端工作树应用了与已推送 `main` 等价的构建修复；网络恢复后更新流程必须优先 `git pull --ff-only`，不要用手工覆盖替代长期同步。当前入口仍是 HTTP 面试 Demo，不宣称正式生产上线；域名/HTTPS、限流、预算、监控、备份和更严格的 BYOK egress/SSRF 治理仍是后续门禁。
+
+## Onboarding skip for public demo
+
+阶段 97 保留首次模型配置页的 LLM/Embedding 表单、连接测试和保存行为，只新增“暂时跳过，稍后在设置中填写”。跳过后按账号写入浏览器本地标记，刷新不会立刻重新拦截；退出登录会清除标记。后端没有因此放宽 Provider Gate，训练/Agent 等依赖模型的操作仍会要求配置真实 LLM 或启用本地演示模型。该阶段只在本地完成 typecheck、前端测试和生产构建，未同步 VPS/GitHub，后续同步必须得到用户明确要求。

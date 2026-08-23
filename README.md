@@ -356,4 +356,5 @@ python scripts\seed_synthetic_browser_demo.py --help
 - docs\QTRACE_ENGINEERING_NOTE.md：项目架构、Agent/RAG/Embedding/SM-2 链路、验证证据和面试讲解主线
 - docs\STAGE95_TENCENT_VPS_PUBLIC_DEMO.md：独立腾讯云 VPS 部署、镜像源覆盖、真实公网 IP/安全组和外部浏览器验收门禁
 - docs\STAGE96_TENCENT_VPS_BROWSER_ACCEPTANCE.md：`49.232.104.202` 公网 IP、TCP 80 入口、Compose healthy 和外部浏览器登录页验收记录
+- docs\STAGE97_ONBOARDING_SKIP.md：保留模型配置表单，同时支持按账号暂时跳过并稍后到设置页补齐
 - 当前 Demo：`http://49.232.104.202/`；这是 HTTP 面试演示入口，不等同于域名/HTTPS/高可用生产服务。更新代码时先 `git pull --ff-only`，再使用服务器本地 `deploy/demo.env` 重建。
