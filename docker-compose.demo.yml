@@ -1,0 +1,38 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.backend
+    environment:
+      REBUILD_DATA_DIR: /app/data
+      REBUILD_DB_PATH: /app/data/rebuild.sqlite3
+      REBUILD_JWT_SECRET: ${REBUILD_JWT_SECRET:?Set REBUILD_JWT_SECRET in deploy/demo.env}
+      REBUILD_ALLOWED_ORIGINS: ${REBUILD_ALLOWED_ORIGINS:-http://localhost:8080}
+      REBUILD_BYOK_STORAGE_MODE: ${REBUILD_BYOK_STORAGE_MODE:-session}
+      REBUILD_BLOCK_PRIVATE_API_BASE: ${REBUILD_BLOCK_PRIVATE_API_BASE:-true}
+    volumes:
+      - qtrace_demo_data:/app/data
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${QTRACE_DEMO_PORT:-8080}:80"
+
+volumes:
+  qtrace_demo_data:

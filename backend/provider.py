@@ -7,6 +7,9 @@ from typing import Any, Protocol
 
 import httpx
 
+from .config import BLOCK_PRIVATE_API_BASE
+from .network_policy import validate_api_base
+
 
 class ProviderError(RuntimeError):
     """A model provider failed or returned an unusable response."""
@@ -213,8 +216,12 @@ class OpenAICompatibleProvider:
         client: httpx.Client | None = None,
         max_retries: int = 1,
         retry_backoff_seconds: float = 0.25,
+        block_private_api_base: bool | None = None,
     ):
-        self.api_base = api_base.rstrip("/")
+        self.api_base = validate_api_base(
+            api_base,
+            block_private=BLOCK_PRIVATE_API_BASE if block_private_api_base is None else block_private_api_base,
+        )
         self.api_key = api_key
         self.model = model
         self.timeout_seconds = timeout_seconds
@@ -227,7 +234,13 @@ class OpenAICompatibleProvider:
         if delay > 0:
             time.sleep(delay)
 
-    def _chat(self, system_prompt: str, user_prompt: str) -> str:
+    def _chat(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        *,
+        max_tokens: int | None = None,
+    ) -> str:
         payload = {
             "model": self.model,
             "messages": [
@@ -236,6 +249,8 @@ class OpenAICompatibleProvider:
             ],
             "temperature": 0.4,
         }
+        if max_tokens is not None:
+            payload["max_tokens"] = max(1, min(int(max_tokens), 16))
         headers = {"Authorization": f"Bearer {self.api_key}"}
         url = f"{self.api_base}/chat/completions"
         response: httpx.Response | None = None
@@ -278,6 +293,15 @@ class OpenAICompatibleProvider:
     def structured_chat(self, system_prompt: str, user_prompt: str) -> str:
         """Expose the validated chat boundary for non-interview analyzers."""
         return self._chat(system_prompt, user_prompt)
+
+    def probe(self) -> None:
+        """Send the smallest useful request without persisting any form values."""
+
+        self._chat(
+            "You are a connectivity probe. Reply with OK only.",
+            "Reply with OK.",
+            max_tokens=1,
+        )
 
     @staticmethod
     def _resume_context(resume_text: str) -> str:

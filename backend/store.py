@@ -84,8 +84,13 @@ class Store:
     plain dictionaries so the data flow stays visible while we learn the system.
     """
 
-    def __init__(self, db_path: str | Path):
+    def __init__(self, db_path: str | Path, *, secret_storage_mode: str = "persisted"):
+        if secret_storage_mode not in {"persisted", "session"}:
+            raise ValueError("secret_storage_mode must be 'persisted' or 'session'")
         self.db_path = Path(db_path)
+        self.secret_storage_mode = secret_storage_mode
+        self._session_llm_keys: dict[str, str] = {}
+        self._session_embedding_keys: dict[str, str] = {}
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
@@ -1109,19 +1114,35 @@ class Store:
             }
         use_stub = bool(row["use_stub_provider"])
         provider_mode = "stub" if use_stub else (row["provider_mode"] or "none")
+        llm_key = (
+            self._session_llm_keys.get(user_id, "")
+            if self.secret_storage_mode == "session"
+            else row["llm_api_key"] or ""
+        )
+        embedding_key = (
+            self._session_embedding_keys.get(user_id, "")
+            if self.secret_storage_mode == "session"
+            else row["embedding_api_key"] or ""
+        )
+        llm_configured = bool(row["llm_configured"]) and (
+            provider_mode != "openai" or bool(llm_key)
+        )
+        embedding_configured = bool(row["embedding_configured"]) and (
+            (row["embedding_mode"] or "demo") != "openai-compatible" or bool(embedding_key)
+        )
         return {
             "use_stub_provider": provider_mode == "stub",
             "provider_mode": provider_mode,
             "llm_api_base": row["llm_api_base"] or "",
             "llm_model": row["llm_model"] or "",
-            "llm_key_configured": bool(row["llm_api_key"]),
+            "llm_key_configured": bool(llm_key),
             "embedding_mode": row["embedding_mode"] or "demo",
             "embedding_api_base": row["embedding_api_base"] or "",
             "embedding_model": row["embedding_model"] or "",
             "embedding_model_path": row["embedding_model_path"] or "",
-            "embedding_key_configured": bool(row["embedding_api_key"]),
-            "llm_configured": bool(row["llm_configured"]),
-            "embedding_configured": bool(row["embedding_configured"]),
+            "embedding_key_configured": bool(embedding_key),
+            "llm_configured": llm_configured,
+            "embedding_configured": embedding_configured,
         }
 
     def get_embedding_config(self, user_id: str) -> dict[str, str]:
@@ -1133,12 +1154,17 @@ class Store:
             ).fetchone()
         if not row:
             return {"mode": "demo", "api_base": "", "model": "", "model_path": "", "api_key": ""}
+        api_key = (
+            self._session_embedding_keys.get(user_id, "")
+            if self.secret_storage_mode == "session"
+            else row["embedding_api_key"] or ""
+        )
         return {
             "mode": row["embedding_mode"] or "demo",
             "api_base": row["embedding_api_base"] or "",
             "model": row["embedding_model"] or "",
             "model_path": row["embedding_model_path"] or "",
-            "api_key": row["embedding_api_key"] or "",
+            "api_key": api_key,
         }
 
     def get_provider_config(self, user_id: str) -> dict[str, str]:
@@ -1151,11 +1177,18 @@ class Store:
         if not row:
             return {"mode": "none", "api_base": "", "model": "", "api_key": ""}
         mode = "stub" if row["use_stub_provider"] else (row["provider_mode"] or "none")
+        api_key = (
+            self._session_llm_keys.get(user_id, "")
+            if self.secret_storage_mode == "session"
+            else row["llm_api_key"] or ""
+        )
+        if mode == "openai" and not api_key:
+            mode = "none"
         return {
             "mode": mode,
             "api_base": row["llm_api_base"] or "",
             "model": row["llm_model"] or "",
-            "api_key": row["llm_api_key"] or "",
+            "api_key": api_key,
         }
 
     def set_stub_provider(self, user_id: str, enabled: bool) -> dict[str, Any]:
@@ -1169,6 +1202,8 @@ class Store:
         return self.get_settings(user_id)
 
     def set_embedding_demo(self, user_id: str) -> dict[str, Any]:
+        if self.secret_storage_mode == "session":
+            self._session_embedding_keys.pop(user_id, None)
         with self._connect() as conn:
             conn.execute(
                 "UPDATE settings SET embedding_configured=1,embedding_mode='demo' WHERE user_id=?",
@@ -1185,11 +1220,14 @@ class Store:
         clean_key = api_key.strip() or current["api_key"]
         if not clean_base or not clean_model or not clean_key:
             raise ValueError("真实 Embedding 配置需要 API Base、Model 和 API Key")
+        if self.secret_storage_mode == "session":
+            self._session_embedding_keys[user_id] = clean_key
+        stored_key = "" if self.secret_storage_mode == "session" else clean_key
         with self._connect() as conn:
             conn.execute(
                 "UPDATE settings SET embedding_configured=1,embedding_mode='openai-compatible',"
                 "embedding_api_base=?,embedding_model=?,embedding_api_key=? WHERE user_id=?",
-                (clean_base, clean_model, clean_key, user_id),
+                (clean_base, clean_model, stored_key, user_id),
             )
         return self.get_settings(user_id)
 
@@ -1199,6 +1237,8 @@ class Store:
             raise ValueError("本地 Embedding 需要模型目录")
         if not Path(clean_path).is_dir():
             raise ValueError("本地 Embedding 模型目录不存在")
+        if self.secret_storage_mode == "session":
+            self._session_embedding_keys.pop(user_id, None)
         with self._connect() as conn:
             conn.execute(
                 "UPDATE settings SET embedding_configured=1,embedding_mode='local-model',"
@@ -1217,12 +1257,15 @@ class Store:
         if not clean_base or not clean_model or not clean_key:
             raise ValueError("真实 LLM 配置需要 API Base、Model 和 API Key")
         existing_embedding = self.get_embedding_config(user_id)
+        if self.secret_storage_mode == "session":
+            self._session_llm_keys[user_id] = clean_key
+        stored_key = "" if self.secret_storage_mode == "session" else clean_key
         with self._connect() as conn:
             conn.execute(
                 "UPDATE settings SET use_stub_provider=0, provider_mode='openai', "
                 "llm_api_base=?, llm_model=?, llm_api_key=?, llm_configured=1, "
                 "embedding_configured=1 WHERE user_id=?",
-                (clean_base, clean_model, clean_key, user_id),
+                (clean_base, clean_model, stored_key, user_id),
             )
             if existing_embedding["mode"] not in {"demo", "local-model", "openai-compatible"}:
                 conn.execute(

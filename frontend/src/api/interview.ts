@@ -788,10 +788,16 @@ export async function testLLMConnection({
 }: LLMConnectionPayload): Promise<
   ApiResponse<"/api/settings/test-llm", "post">
 > {
-  void api_base;
-  void api_key;
-  void model;
-  return { ok: false, error: "当前 QTrace 尚未提供独立 LLM 连接测试接口，请保存配置后进行一次合成数据训练验证。" } as any;
+  const res = await authFetch(`${API_BASE}/settings/test-llm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_base: api_base || "",
+      api_key: api_key || "",
+      model: model || "",
+    }),
+  });
+  return (await readJson<AnyRecord>(res)) as ApiResponse<"/api/settings/test-llm", "post">;
 }
 
 export async function testEmbeddingConnection(

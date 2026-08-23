@@ -1,4 +1,6 @@
 import httpx
+import json
+
 import pytest
 
 from backend.provider import OpenAICompatibleProvider, ProviderError
@@ -90,3 +92,25 @@ def test_provider_does_not_retry_authentication_error():
         with pytest.raises(ProviderError, match="HTTP 401"):
             provider.structured_chat("system", "user")
     assert calls == 1
+
+
+def test_provider_probe_uses_a_minimal_one_token_request():
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        return _success_response()
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        provider = OpenAICompatibleProvider(
+            "https://llm.example.test/v1",
+            "synthetic-key",
+            "synthetic-model",
+            client=client,
+            max_retries=0,
+        )
+        provider.probe()
+
+    assert seen[0]["max_tokens"] == 1
+    assert seen[0]["model"] == "synthetic-model"
+    assert seen[0]["messages"][1]["content"] == "Reply with OK."

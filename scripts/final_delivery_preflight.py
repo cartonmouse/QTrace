@@ -39,6 +39,11 @@ REQUIRED_FILES = (
     "frontend/src/components/Sidebar.tsx",
     "frontend/public/qtrace-icon.png",
     "docs/QTRACE_ENGINEERING_NOTE.md",
+    "docker-compose.demo.yml",
+    "deploy/Dockerfile.backend",
+    "deploy/Dockerfile.web",
+    "deploy/nginx.conf",
+    "deploy/demo.env.example",
     "scripts/repository_preflight.py",
     "scripts/reproduction_preflight.py",
     "scripts/local_runtime_smoke.py",
@@ -52,10 +57,12 @@ REQUIRED_FILES = (
     "scripts/qtrace_interview_preflight.py",
     "scripts/qtrace_profile_preflight.py",
     "scripts/qtrace_settings_preflight.py",
+    "scripts/qtrace_byok_preflight.py",
     "scripts/qtrace_entry_preflight.py",
     "scripts/resume_claims_preflight.py",
     "scripts/seed_synthetic_browser_demo.py",
     "scripts/isolated_demo_preflight.py",
+    "scripts/public_demo_preflight.py",
 )
 
 STAGE_DOCS = (
@@ -106,6 +113,11 @@ STAGE_DOCS = (
     "docs/STAGE87_QTRACE_PROFILE_WORKSPACE.md",
     "docs/STAGE88_QTRACE_SETTINGS_FEEDBACK.md",
     "docs/STAGE89_LOCAL_ACCEPTANCE_CHECKLIST.md",
+    "docs/STAGE90_PUBLIC_DEMO_DEPLOYMENT_CONTRACT.md",
+    "docs/STAGE91_BYOK_LLM_CONNECTION_PROBE.md",
+    "docs/STAGE92_SESSION_BYOK_STORAGE.md",
+    "docs/STAGE93_LOCAL_RUNTIME_HANDOFF.md",
+    "docs/STAGE94_PUBLIC_API_BASE_POLICY.md",
     "THIRD_PARTY_NOTICES.md",
 )
 
@@ -116,6 +128,7 @@ README_EVIDENCE = (
     "npm run build",
     "python scripts\\repository_preflight.py",
     "python scripts\\qtrace_settings_preflight.py",
+    "python scripts\\qtrace_byok_preflight.py",
     "python scripts\\resume_claims_preflight.py",
     "docs\\STAGE89_LOCAL_ACCEPTANCE_CHECKLIST.md",
 )

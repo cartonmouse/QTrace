@@ -28,7 +28,7 @@ npm install
 npm run dev
 ```
 
-浏览器打开 `http://127.0.0.1:5174`。首次进入后注册本地账号，在“模型设置”中启用本地演示模型即可离线体验；使用真实 LLM 时再填写 OpenAI-compatible API Base、Model 和 API Key。API Key 只保存在本地 SQLite 设置表，不会由设置接口返回给前端。
+浏览器打开 `http://127.0.0.1:5174`。首次进入后注册本地账号，在“模型设置”中启用本地演示模型即可离线体验；使用真实 LLM 时再填写 OpenAI-compatible API Base、Model 和 API Key。普通本地运行默认使用 `persisted` 兼容模式，API Key 只保存在本地 SQLite 设置表且不会由设置接口返回给前端；公开 Demo Compose 默认使用 `session` 模式，访问者 Key 只留在当前后端进程内存，服务重启后需要重新输入。
 
 如果已经下载了 Sentence-Transformers 模型，可以额外安装 `requirements-local-embedding.txt`，然后在“模型设置”中选择“本地语义模型”，填写后端可访问的模型目录；加载始终使用 `local_files_only=True`，不会因为缺少本地文件而联网下载。
 
@@ -74,6 +74,25 @@ python scripts\seed_synthetic_browser_demo.py --help
 ## 本地验收清单
 
 阶段 89 的逐项人工验收记录见 `docs/STAGE89_LOCAL_ACCEPTANCE_CHECKLIST.md`（PowerShell 路径写法：`docs\STAGE89_LOCAL_ACCEPTANCE_CHECKLIST.md`）。它覆盖直达登录、QTrace 工作台、开始训练、画像首屏、模型设置状态、Embedding 显式重建、PDF/Markdown 文档导入、Personal Agent、知识图谱和主题/窄屏路径。自动化证据和人工证据分开记录；当前环境的正式 `dist` 写入 `EPERM`、登录后浏览器视觉、真实 LLM/本地 Embedding 路径仍按清单如实验收，不把静态检查说成完整 E2E。
+
+## 面试 Demo 部署包
+
+阶段 90 增加了 `docker-compose.demo.yml` 和 `deploy/` 部署包：Nginx 提供前端生产构建并把 `/api` 代理到 FastAPI，后端使用命名卷保存 Demo 数据，`REBUILD_JWT_SECRET` 必须由部署环境提供。先运行 `python scripts\public_demo_preflight.py` 做只读契约检查；有 Docker 时复制 `deploy\demo.env.example` 为 `deploy\demo.env`，替换 JWT secret 后再按 `docs\STAGE90_PUBLIC_DEMO_DEPLOYMENT_CONTRACT.md` 启动。
+
+公开 Demo 不内置开发者 LLM Key。用户仍可在网页“模型设置”中填写自己的 OpenAI-compatible API Base、Model 和 API Key；Stub 只作为没有 Key 时的明确离线降级。Compose 默认的 `session` BYOK 模式不会把访问者 Key 写入 SQLite，但仍需 HTTPS、API Base 白名单/SSRF 防护、限流、预算、备份和日志治理，不能把本地 Compose 契约写成“已经上线”。
+
+部署包已在本机完成 Docker 验证：前后端镜像构建成功，8080 端口的 Nginx 首页和 `/api/health` 代理均返回 200；容器验证结束后已停止，未删除命名卷。正式公网 URL、HTTPS 和云端账号仍未配置。
+
+阶段 91 已把模型设置页的 LLM 连接测试接到 `POST /api/settings/test-llm`：测试当前表单配置，空字段可复用已保存配置，但不会保存新值；探测只发最小合成请求并隐藏凭据。运行 `python scripts\qtrace_byok_preflight.py` 可检查该契约。公网前仍需完成 BYOK 加密/会话存储、SSRF 防护和限流。
+
+阶段 92 为 Demo Compose 默认启用 `REBUILD_BYOK_STORAGE_MODE=session`：访问者的 LLM/Embedding Key 只在当前后端进程内存中存在，SQLite 不保存 Key；服务重启后需要重新填写。普通本地运行仍默认使用 `persisted` 以保持学习环境兼容，完整公网发布前仍需 HTTPS、SSRF 防护、限流、预算和日志治理。
+
+阶段 93 完成本地运行态交接：重启 8002 后端时使用 `techsnowsong_stage` 下的合成 SQLite/Data 目录，5174 当前前端通过 `/api` 代理访问该后端；合成账号注册、设置读取、空配置 `POST /api/settings/test-llm`、前端入口和代理健康检查均已通过。session 模式下切换到 Demo/本地 Embedding 会清除进程内旧远程 Key，并有回归锁定；全量合成回归 `136 passed`，typecheck/build 和发布预检通过。正式目录的 Vite `.vite-temp` 与默认 SQLite 写入仍受当前 Windows `EPERM`/只读边界影响，使用暂存输出和隔离环境验证，不删除或覆盖正式产物。
+
+阶段 94 为公开 Compose 增加 `REBUILD_BLOCK_PRIVATE_API_BASE=true`：保存 LLM/Embedding 配置和独立 LLM 测试前会校验 `http/https`、URL 凭据、localhost/内部域名、私网/回环/链路本地 IP，以及 DNS 解析结果是否全部为公网地址；本地默认关闭，以保留 Ollama 等本机兼容服务调试能力。该校验是应用层第一道门，真正公网发布仍需云防火墙/egress policy 防止 DNS rebinding，并应继续保留限流、预算和日志治理。
+
+阶段 94 的容器验收也已完成：Compose 镜像构建通过，8080 首页和同源健康检查通过；合成账号访问私有 API Base 时，连接测试被安全拒绝、配置保存返回 400，验证后仅停止容器，未删除数据卷。该结果证明“可部署并有第一层边界”，不代表已经配置公网 URL 或完成云端安全发布。
+最终收口门禁：全量合成回归 `148 passed`，BYOK/public-demo/final-delivery 预检通过，`git diff --check` 通过；正式目录 `.pytest_cache` 的 Windows 写权限 warning 保留为环境边界记录。
 
 ## 目标形态
 

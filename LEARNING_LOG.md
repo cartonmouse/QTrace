@@ -1016,3 +1016,46 @@
 - 自动证据和人工证据分开：静态预检、全量合成 Python 回归 `124 passed`、69 个 Python 文件内存编译、typecheck、备用构建、5174 登录入口和 `/api/health` 已经可以重复运行；登录后的合成账号路径、真实 LLM/本地 Embedding 成功与失败路径必须由用户在浏览器中勾选，不能用源码预检替代。
 - 清单明确记录正式 `dist` 写入 `EPERM` 的当前 Windows 环境边界、真实资料/真实 API Key 禁止项，以及真实长音频、说话人分离和时间戳不属于当前交付范围。
 - 本阶段没有新增业务代码，没有读取或输出 API Key、真实简历、个人文档或浏览器存储，没有调用外部 API、删除文件、部署或 GitHub commit/push。
+
+## 阶段 90：面试 Demo 公网部署契约
+
+- 用户目标从“本地能跑”推进到“面试官可以通过网页体验”。我先把部署问题拆成可验证的本地契约，不在没有云账号、域名和 HTTPS 配置时假装已经上线。
+- 新增 Docker Compose 双服务：FastAPI 后端使用 `python:3.12-slim`，前端生产构建使用 Node 22 并由 Nginx 提供；Nginx 将同源 `/api` 请求代理到内部 `api:8000`，静态路由使用 `try_files` 回退到 `index.html`。
+- 后端新增 `REBUILD_ALLOWED_ORIGINS` 配置；Compose 强制要求外部提供 `REBUILD_JWT_SECRET`，数据通过命名卷挂载到 `/app/data`，避免把 SQLite 文件打进镜像或暴露后端端口。
+- 新增 `scripts/public_demo_preflight.py` 与回归，检查部署文件、反向代理、健康依赖、持久化卷、secret 占位符和示例配置中没有 LLM credential assignment；检查只读，不启动容器、不联网、不读取 SQLite/真实资料/API Key。
+- 公开 Demo 的真实产品边界明确为 BYOK：用户可以在网页配置自己的 OpenAI-compatible API，后端调用真实 Provider；Stub 仅用于无 Key 的离线体验和自动化回归。正式公网前仍需补充 API Key 加密/会话保存、API Base 白名单与 SSRF 防护、限流、HTTPS、备份以及独立 LLM 连接测试接口。
+- 本地验证补充完成：专项预检 `3 passed`；Docker Compose 配置解析通过；`docker compose build` 成功构建 API/Web 镜像；短暂启动后 8080 首页和同源 `/api/health` 代理均返回 200，随后仅停止容器且没有删除命名卷。正式工程 `frontend/dist` 因 Windows `EPERM` 未作为运行态资产生成，但容器内生产构建已经成功。
+- 我现在能回答：为什么前端和后端要用同源反向代理、为什么生产 JWT secret 不能沿用本地默认值、为什么“Docker Compose 可启动”不等于“公网安全可用”，以及为什么 BYOK 仍需要服务端密钥治理。
+
+本阶段只修改本地部署准备、配置、预检和文档；没有公网/外部部署、没有读取或输出 API Key/真实简历/个人文档、没有提交或推送 GitHub。
+
+## 阶段 91：BYOK 独立 LLM 连接测试
+
+- 复查模型设置链路后确认：真实 Provider 已用于训练，但 `testLLMConnection` 仍是前端占位。新增 `POST /api/settings/test-llm`，把当前表单的 API Base、Model 和 API Key 交给 `OpenAICompatibleProvider.probe()`，不写入 Store；空字段才回退到已保存配置，方便刷新页面后重新测试而不回显 Key。
+- Provider 探测使用固定合成提示和 `max_tokens=1`，零重试，成功/失败返回都不包含 Authorization、API Key 或上游响应正文。前端 adapter 现在真实 fetch 该端点，已有 loading/success/error 状态可以观察真实结果。
+- 新增 `scripts/qtrace_byok_preflight.py` 和回归；BYOK 静态契约 `2 passed`，Provider/端点合成回归 `8 passed`，全量合成回归 `133 passed`，前端 typecheck/build 通过。更新后的 Docker 容器也通过 8080 健康检查和空配置测试分支；没有调用真实 LLM API。
+- 这一步只解决“能否独立验证连接”，没有假装解决公网密钥治理。公开 Demo 前仍需 API Key 加密或会话存储、API Base SSRF/私网阻断、限流、预算和受控的真实联调。
+
+## 阶段 92：公开 Demo 的会话级 BYOK 存储
+
+- 为避免访问者的 LLM/Embedding Key 明文落入公开 Demo 的 SQLite，新增 `REBUILD_BYOK_STORAGE_MODE`：`persisted` 保持本地兼容，`session` 只在 FastAPI 进程内存保存 Key；Compose 和示例环境默认 `session`。
+- session 模式下非敏感的 API Base/Model 仍可用于恢复界面，Key 字段写入 SQLite 为空；服务重启后配置被判定为未完成，Provider 不会拿空 Key 发起请求，用户需要重新输入。
+- 合成回归覆盖“内存可用、数据库为空、重启失效”和 persisted 兼容路径；公共 Demo 预检新增 session 配置与 Store 实现标记。全量回归 `135 passed`、typecheck/build 和容器健康检查继续作为门禁；本机容器实测重启 API 后配置回到未完成，说明不会从 SQLite 恢复 Key。
+- 该改动降低了数据库泄露风险，但没有替代 HTTPS、API Base SSRF/私网阻断、限流、调用预算、审计日志和真实外部联调；这些仍是取得公网 URL 前的必要工作。
+
+## 阶段 93：本地运行态交接与 session Key 状态清理
+
+- 本地端口曾出现“5174 是当前前端、8002 仍是旧后端”的混合状态。通过 OpenAPI 和同源代理检查识别出旧实例后，只重启 QTrace 的 8002 监听进程，并将后端指向阶段暂存目录的合成 SQLite/Data 路径；没有触碰正式数据库或浏览器存储。
+- 合成 HTTP 彩排通过：5174 `/api/health` 返回 qtrace healthy；新合成账号可以注册、读取设置；空配置 `POST /api/settings/test-llm` 返回安全的缺少配置错误；当前 OpenAPI 包含 LLM 连接测试和 PDF/Markdown 文档上传接口；前端入口没有 Vite 黑屏注入。
+- 发现并修复 session BYOK 的边界：远程 Embedding 切换到 Demo 或本地模型后，必须清除进程内旧 Key，否则设置页的 `embedding_key_configured` 会残留为 true。新增回归覆盖 Demo 与本地模型两条切换路径，隔离全量回归 `136 passed`。
+- 前端 typecheck/build 和 public demo、BYOK、final delivery 预检通过；正式目录的 Vite `.vite-temp`/默认 SQLite 写入仍受 Windows 权限边界影响，使用暂存输出/隔离环境验证。该限制已记录，不通过删除文件规避。
+- 本阶段仍没有公网部署、域名、HTTPS、真实 LLM 联调、真实简历/个人文档、API Key 输出或 GitHub commit/push。下一步只剩用户用合成账号完成浏览器逐项验收，及未来有部署授权后补 SSRF、限流、预算和云端配置。
+
+## 阶段 94：公开 Demo API Base SSRF 第一层防护
+
+- 公开 Demo 不能把访问者输入的任意 API Base 直接交给 `httpx`，否则服务端可能被利用访问 localhost、云元数据、私网或内部 DNS。新增 `backend/network_policy.py`，统一校验协议、主机名、URL 凭据、IP 字面量和 DNS 解析结果。
+- `REBUILD_BLOCK_PRIVATE_API_BASE` 默认关闭以保持本地 Ollama/兼容服务可调试；Compose 与 `deploy/demo.env.example` 默认开启。LLM 保存、Embedding 远程保存、LLM 独立连接测试和 Provider 构造共用该边界，私网地址在 Provider 构造前即失败。
+- 安全专项回归 `23 passed`：覆盖回环/私网/链路本地/内部域名/不安全协议/URL 凭据、公开 DNS 结果、私网 DNS 结果和接口不触发 Provider；BYOK/public demo 静态预检同步检查网络策略标记。
+- Docker 生产镜像构建和 Compose 短时运行通过：8080 首页、同源健康检查、合成注册均成功；公开模式下私有地址的 LLM 探测被拒绝、配置保存返回 400，验证后仅停止容器并保留数据卷。
+- 最终收口门禁通过：全量合成回归 `148 passed`，BYOK/public-demo/final-delivery 预检和 `git diff --check` 通过；仅保留正式目录 `.pytest_cache` 的 Windows 写权限 warning，不删除权限受限产物。
+- 这只是应用层第一道门。DNS 检查存在时间窗口，真正公网发布仍需云防火墙或 egress proxy 防止 DNS rebinding，并补 HTTPS、限流、调用预算、日志治理和监控；本阶段没有真实外部请求、真实资料、真实 API Key、部署或 GitHub 推送。

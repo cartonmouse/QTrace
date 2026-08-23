@@ -352,3 +352,31 @@ scripts/embedding_eval.py 使用固定的四份合成技术文档、四个查询
 ## Local acceptance checklist
 
 阶段 89 不再扩展业务范围，新增 `docs/STAGE89_LOCAL_ACCEPTANCE_CHECKLIST.md` 作为最终本地验收清单。清单把自动证据和人工证据分开，覆盖直达登录、QTrace 工作台、画像、开始训练、模型设置、Embedding 显式 reindex、PDF/Markdown 文档、Personal Agent、知识图谱、主题和窄屏。自动预检、全量合成 Python 回归 `124 passed`、69 个 Python 文件内存编译、typecheck、备用 build、5174 登录入口和 `/api/health` 已通过；登录后合成账号路径、真实 LLM/本地 Embedding 路径、正式 dist 的 Windows `EPERM` 边界仍按清单如实记录，不把静态检查说成完整浏览器 E2E。
+
+## Public interview demo deployment contract
+
+阶段 90 从“本地可运行”进入“可部署准备”：新增 `docker-compose.demo.yml`、`deploy/Dockerfile.backend`、`deploy/Dockerfile.web`、`deploy/nginx.conf`、`deploy/demo.env.example` 和 `scripts/public_demo_preflight.py`。前端生产产物由 Nginx 提供，`/api` 与预留的 `/ws` 由同源代理转发到 FastAPI，后端只在 Compose 内网暴露 8000，SQLite 数据进入命名卷；`REBUILD_JWT_SECRET` 不再允许通过生产 Compose 使用本地默认值。`REBUILD_ALLOWED_ORIGINS` 支持由部署环境配置允许来源。
+
+这仍是部署契约，不是公网已上线证据。公开 Demo 的产品边界是“用户登录后自带 OpenAI-compatible LLM 配置（BYOK），没有 Key 时明确降级到 Stub”，不把开发者 Key 写进镜像或示例环境文件。当前后端配置仍会把用户 Key 放入 SQLite，正式公网前必须补充加密/会话保存、API Base SSRF 防护、限流和连接测试接口。`scripts/public_demo_preflight.py` 只读检查文件、代理、卷、secret 和示例配置，不启动 Docker、不联网、不读取真实资料或 API Key。
+
+本机 Docker 验证已完成：`docker compose build` 成功构建 API/Web 镜像；临时启动后 `http://127.0.0.1:8080/` 和经 Nginx 代理的 `/api/health` 均返回 200。验证结束后只停止容器，没有删除命名卷。正式公网部署、域名和 HTTPS 仍未完成。
+
+阶段 91 新增 `POST /api/settings/test-llm` 和 `OpenAICompatibleProvider.probe()`。端点只测试未保存的表单值，空字段才回退到用户已保存配置，不调用设置写入方法；探测请求使用固定合成提示和 `max_tokens=1`，前端 `testLLMConnection` 已从占位返回改为真实 fetch。BYOK 的明文 SQLite 存储、API Base SSRF、限流和真实外部联调仍是公网前门禁。
+
+阶段 92 新增 `REBUILD_BYOK_STORAGE_MODE`。本地默认 `persisted` 保持既有行为；`docker-compose.demo.yml` 默认 `session`，Store 将 LLM/Embedding Key 留在进程内存、向 SQLite 写入空字符串，重启后 `llm_configured/embedding_configured` 会回到未完成并要求重新输入。该模式不是完整安全方案，公网前仍需 API Base SSRF/私网阻断、HTTPS、限流、预算和日志治理。
+
+## Local runtime handoff
+
+阶段 93 处理了本地验收时“前端是新代码、后端却是旧监听实例”的运行态问题：确认 5174 前端已包含 QTrace 自有外壳、直达登录和真实 LLM 测试 adapter 后，只重启确认属于 QTrace 的 8002 后端，并把运行数据库与数据目录指向 `techsnowsong_stage` 合成路径。当前 8002 OpenAPI 已包含 `/api/settings/test-llm` 和 PDF/Markdown 文档上传，5174 `/api/health` 同源代理、合成注册、受保护设置读取和空配置测试分支均通过。
+
+本阶段还修复 session BYOK 在切换到 Demo/本地 Embedding 后残留内存 Key 的状态一致性问题。Store 只在 `session` 模式清除对应内存项，`persisted` 本地兼容行为不变。隔离全量回归 `136 passed`，前端 typecheck、暂存目录 build、public demo/BYOK/final delivery 预检通过。新启动前端尝试仍会受到正式 `node_modules/.vite-temp` 的 Windows `EPERM`，因此保留已运行的当前前端实例并用 HTTP/代理检查验证，不把权限边界写成应用失败。
+
+本地运行态不等于公网部署：没有创建公网 URL、域名或 HTTPS，也没有读取真实资料、输出 API Key、调用真实外部模型、删除文件或推送 GitHub。浏览器验收仍应使用新的合成账号；公开 Demo 仍需 SSRF/私网阻断、限流、预算、日志治理和部署环境配置。
+
+## Public API Base network policy
+
+阶段 94 为 BYOK 增加应用层 API Base 安全边界。`REBUILD_BLOCK_PRIVATE_API_BASE` 默认关闭以兼容本地 Ollama/OpenAI-compatible 调试，公开 Compose 和示例环境默认开启。开启后，设置保存、Embedding 远程配置、LLM 独立连接测试和 Provider 构造都会拒绝非 `http/https`、URL 中嵌入凭据、localhost/内部域名、私网/回环/链路本地 IP；主机名还会在配置时解析，任一结果不是公网地址就拒绝。
+
+这不是完整的 SSRF 终点：配置时 DNS 检查不能单独消除之后的 DNS rebinding，因此真正上线还必须配置云侧出站网络策略/代理、HTTPS、限流、调用预算、日志脱敏和监控。所有拒绝都发生在 Provider 请求前，LLM/Embedding API Key 不进入错误响应或日志。专项回归只使用合成地址和 fake resolver。
+
+本阶段的 Compose 运行态证据已补齐：API/Web 镜像构建成功，8080 首页与 `/api/health` 代理通过，合成账号注册成功；公开模式下对 `127.0.0.1` 的 LLM 探测返回失败但不发起上游请求，设置保存返回 400。验证完成后仅停止容器，没有删除命名卷；仍未进行外部部署。

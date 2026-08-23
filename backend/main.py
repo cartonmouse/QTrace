@@ -11,7 +11,14 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from .agent import AgentProviderError, build_agent_model, run_personal_agent
-from .config import DB_PATH, JWT_SECRET, TOKEN_TTL_SECONDS
+from .config import (
+    ALLOWED_ORIGINS,
+    BLOCK_PRIVATE_API_BASE,
+    BYOK_STORAGE_MODE,
+    DB_PATH,
+    JWT_SECRET,
+    TOKEN_TTL_SECONDS,
+)
 from .copilot import build_copilot_prep, copilot_event_sequence
 from .graph import build_topic_feedback_report, build_topic_graph, resolve_graph_question_entry
 from .interview import InterviewEngine
@@ -50,6 +57,7 @@ from .models import (
     DueReviewView,
     JobPrepPreviewRequest,
     JobPrepStartRequest,
+    LLMConnectionRequest,
     LoginRequest,
     ProfileView,
     RegisterRequest,
@@ -91,26 +99,38 @@ from .knowledge import (
 from .resume import ResumeError, delete_resume, get_resume_file, get_resume_status, get_resume_text, save_resume
 from .structured_resume import StructuredResumeError, StructuredResumeService
 from .security import create_access_token, decode_access_token, verify_password
+from .network_policy import validate_api_base
 from .store import Store
 
 
 bearer = HTTPBearer(auto_error=False)
 
 
-def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None) -> FastAPI:
+def create_app(
+    db_path: str | Path | None = None,
+    jwt_secret: str | None = None,
+    byok_storage_mode: str | None = None,
+    block_private_api_base: bool | None = None,
+) -> FastAPI:
     app = FastAPI(title="问迹 QTrace", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+        allow_origins=list(ALLOWED_ORIGINS),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.state.store = Store(db_path or DB_PATH)
+    app.state.store = Store(
+        db_path or DB_PATH,
+        secret_storage_mode=byok_storage_mode or BYOK_STORAGE_MODE,
+    )
     app.state.personal_documents = PersonalDocumentService(app.state.store)
     app.state.structured_resume = StructuredResumeService(app.state.store)
     app.state.jwt_secret = jwt_secret or JWT_SECRET
     app.state.data_dir = Path(db_path or DB_PATH).parent
+    app.state.block_private_api_base = (
+        BLOCK_PRIVATE_API_BASE if block_private_api_base is None else bool(block_private_api_base)
+    )
 
     def personal_documents_for(request: Request, user: dict[str, Any]) -> PersonalDocumentService:
         try:
@@ -282,12 +302,46 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
             if payload.use_stub_provider:
                 values = request.app.state.store.set_stub_provider(user["id"], True)
             else:
+                validate_api_base(
+                    payload.llm_api_base,
+                    block_private=request.app.state.block_private_api_base,
+                )
                 values = request.app.state.store.set_openai_provider(
                     user["id"], payload.llm_api_base, payload.llm_model, payload.llm_api_key
                 )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return settings_view(values)
+
+    @app.post("/api/settings/test-llm")
+    def test_llm_connection(
+        payload: LLMConnectionRequest,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> dict[str, Any]:
+        """Probe unsaved LLM form values without writing them to the store."""
+
+        saved = request.app.state.store.get_provider_config(user["id"])
+        api_base = payload.api_base.strip() or saved["api_base"]
+        model = payload.model.strip() or saved["model"]
+        api_key = payload.api_key.strip() or saved["api_key"]
+        if not api_base or not model or not api_key:
+            return {"ok": False, "error": "LLM 连接测试需要 API Base、Model 和 API Key"}
+        try:
+            api_base = validate_api_base(
+                api_base,
+                block_private=request.app.state.block_private_api_base,
+            )
+            OpenAICompatibleProvider(
+                api_base=api_base,
+                api_key=api_key,
+                model=model,
+                timeout_seconds=15.0,
+                max_retries=0,
+            ).probe()
+        except (ProviderError, ValueError) as exc:
+            return {"ok": False, "error": str(exc)}
+        return {"ok": True, "message": "LLM 连接成功"}
 
     @app.put("/api/settings/embedding", response_model=SettingsView)
     def update_embedding_settings(
@@ -301,6 +355,10 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
             elif payload.mode == "local-model":
                 values = request.app.state.store.set_local_embedding(user["id"], payload.model_path)
             else:
+                validate_api_base(
+                    payload.api_base,
+                    block_private=request.app.state.block_private_api_base,
+                )
                 values = request.app.state.store.set_openai_embedding(
                     user["id"], payload.api_base, payload.model, payload.api_key
                 )

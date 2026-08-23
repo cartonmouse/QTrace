@@ -37,6 +37,14 @@ class SettingsUpdate(BaseModel):
     llm_api_key: str = Field(default="", max_length=500)
 
 
+class LLMConnectionRequest(BaseModel):
+    """Unsaved form values used by the non-persistent provider probe."""
+
+    api_base: str = Field(default="", max_length=500)
+    model: str = Field(default="", max_length=200)
+    api_key: str = Field(default="", max_length=500)
+
+
 class EmbeddingSettingsUpdate(BaseModel):
     mode: Literal["demo", "local-model", "openai-compatible"] = "demo"
     api_base: str = Field(default="", max_length=500)
