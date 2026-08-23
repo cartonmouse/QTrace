@@ -1083,3 +1083,10 @@
 - 跳过状态按账号写入浏览器 localStorage，刷新页面可以继续浏览；退出登录时清除，避免一个账号的跳过状态影响另一个账号。后端仍会阻止未配置模型的训练/Agent 请求，前端可以引导用户前往模型设置。
 - 本地 `frontend` typecheck 通过，前端测试 `3 passed`，Vite build 通过（3809 modules）；没有读取或输出 API Key、真实资料，没有真实 LLM 请求。
 - 按用户要求，本阶段没有 commit/push GitHub，也没有更新或重启腾讯云 VPS；未来只有用户明确要求时才同步。
+
+## 阶段 98：LLM 连接探测兼容性
+
+- 用户反馈：专项训练已经可以正常使用真实 LLM，但设置页“测试连接”显示“LLM 返回了空内容”。排查确认两条路径共用 Provider，但连接探测把 `max_tokens` 限制为 1，短输出/reasoning 模型可能返回合法的 `choices[0].message` 而没有可见 `content`。
+- 修复边界：`probe()` 将探测预算提高到 16，并允许合法响应的空可见内容通过；正常 `structured_chat()` 默认仍拒绝空内容，避免掩盖专项训练的业务错误。
+- 回归：`python -m pytest -p no:cacheprovider -q tests/test_provider_resilience.py tests/test_llm_connection.py` → `10 passed`。测试只使用合成 Provider 响应和阶段目录临时数据库，没有读取/输出 API Key，也没有发起真实 LLM 请求。
+- 本阶段只修改本地正式工程，未 commit/push GitHub，未同步或重启 VPS；如需让公网设置页使用修复，必须由用户明确要求后再同步。

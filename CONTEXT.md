@@ -396,3 +396,7 @@ scripts/embedding_eval.py 使用固定的四份合成技术文档、四个查询
 ## Onboarding skip for public demo
 
 阶段 97 保留首次模型配置页的 LLM/Embedding 表单、连接测试和保存行为，只新增“暂时跳过，稍后在设置中填写”。跳过后按账号写入浏览器本地标记，刷新不会立刻重新拦截；退出登录会清除标记。后端没有因此放宽 Provider Gate，训练/Agent 等依赖模型的操作仍会要求配置真实 LLM 或启用本地演示模型。该阶段只在本地完成 typecheck、前端测试和生产构建，未同步 VPS/GitHub，后续同步必须得到用户明确要求。
+
+## LLM connection probe compatibility
+
+阶段 98 修正了模型设置页连接测试对短输出/reasoning 模型的误判。专项训练仍通过 `structured_chat()` 严格要求非空可见文本；只有 `probe()` 使用 `allow_empty=True`，因为连接测试的职责是确认上游 HTTP 响应和 `choices[0].message` 结构，而不是评价回答质量。探测请求的 `max_tokens` 从 1 调整为 16，避免模型把全部预算消耗在内部 reasoning 后被误报“LLM 返回了空内容”。本阶段只使用合成 HTTP 响应回归，未调用真实 LLM，也未同步 VPS/GitHub。

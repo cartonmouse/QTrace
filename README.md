@@ -357,4 +357,5 @@ python scripts\seed_synthetic_browser_demo.py --help
 - docs\STAGE95_TENCENT_VPS_PUBLIC_DEMO.md：独立腾讯云 VPS 部署、镜像源覆盖、真实公网 IP/安全组和外部浏览器验收门禁
 - docs\STAGE96_TENCENT_VPS_BROWSER_ACCEPTANCE.md：`49.232.104.202` 公网 IP、TCP 80 入口、Compose healthy 和外部浏览器登录页验收记录
 - docs\STAGE97_ONBOARDING_SKIP.md：保留模型配置表单，同时支持按账号暂时跳过并稍后到设置页补齐
+- docs\STAGE98_LLM_PROBE_COMPATIBILITY.md：修正 reasoning/短输出模型在“测试连接”中的空可见内容误判，同时保持专项训练严格拒绝业务空回复
 - 当前 Demo：`http://49.232.104.202/`；这是 HTTP 面试演示入口，不等同于域名/HTTPS/高可用生产服务。更新代码时先 `git pull --ff-only`，再使用服务器本地 `deploy/demo.env` 重建。

@@ -94,7 +94,7 @@ def test_provider_does_not_retry_authentication_error():
     assert calls == 1
 
 
-def test_provider_probe_uses_a_minimal_one_token_request():
+def test_provider_probe_uses_a_short_but_usable_request():
     seen: list[dict] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -111,6 +111,49 @@ def test_provider_probe_uses_a_minimal_one_token_request():
         )
         provider.probe()
 
-    assert seen[0]["max_tokens"] == 1
+    assert seen[0]["max_tokens"] == 16
     assert seen[0]["model"] == "synthetic-model"
     assert seen[0]["messages"][1]["content"] == "Reply with OK."
+
+
+def test_provider_probe_accepts_empty_visible_content_from_reasoning_model():
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": "",
+                            "reasoning_content": "synthetic internal trace",
+                        }
+                    }
+                ]
+            },
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        provider = OpenAICompatibleProvider(
+            "https://llm.example.test/v1",
+            "synthetic-key",
+            "synthetic-model",
+            client=client,
+            max_retries=0,
+        )
+        provider.probe()
+
+
+def test_structured_chat_still_rejects_empty_visible_content():
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"message": {"content": ""}}]})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        provider = OpenAICompatibleProvider(
+            "https://llm.example.test/v1",
+            "synthetic-key",
+            "synthetic-model",
+            client=client,
+            max_retries=0,
+        )
+        with pytest.raises(ProviderError, match="空内容"):
+            provider.structured_chat("system", "user")

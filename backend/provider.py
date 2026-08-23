@@ -240,6 +240,7 @@ class OpenAICompatibleProvider:
         user_prompt: str,
         *,
         max_tokens: int | None = None,
+        allow_empty: bool = False,
     ) -> str:
         payload = {
             "model": self.model,
@@ -283,10 +284,15 @@ class OpenAICompatibleProvider:
             raise ProviderError("LLM 请求没有返回响应")
         try:
             data = response.json()
-            content = data["choices"][0]["message"]["content"]
-        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            message = data["choices"][0]["message"]
+            content = message.get("content", "")
+        except (ValueError, KeyError, IndexError, AttributeError, TypeError) as exc:
             raise ProviderError("LLM 返回缺少 choices[0].message.content") from exc
+        if content is None:
+            content = ""
         if not isinstance(content, str) or not content.strip():
+            if allow_empty:
+                return ""
             raise ProviderError("LLM 返回了空内容")
         return content.strip()
 
@@ -300,7 +306,11 @@ class OpenAICompatibleProvider:
         self._chat(
             "You are a connectivity probe. Reply with OK only.",
             "Reply with OK.",
-            max_tokens=1,
+            # Some reasoning models may spend the first token on an internal
+            # trace and return an empty visible content field. The probe is
+            # checking reachability and response shape, not answer quality.
+            max_tokens=16,
+            allow_empty=True,
         )
 
     @staticmethod
