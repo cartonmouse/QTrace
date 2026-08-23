@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-import re
 import uuid
 from pathlib import Path
 
+from .document_import import (
+    DocumentImportError,
+    MAX_PDF_BYTES,
+    extract_pdf_text_from_bytes,
+)
 
-MAX_RESUME_BYTES = 20 * 1024 * 1024
+MAX_RESUME_BYTES = MAX_PDF_BYTES
 MAX_RESUME_TEXT_CHARS = 20_000
 
 
@@ -34,20 +38,17 @@ def get_resume_file(user_id: str, data_dir: str | Path) -> Path | None:
 def extract_pdf_text(path: str | Path) -> str:
     """Extract text locally; the resume is passed directly to the provider, not embedded."""
     try:
-        from pypdf import PdfReader
-    except ImportError as exc:  # pragma: no cover - dependency installation issue
-        raise ResumeError("缺少 pypdf 依赖，请先安装 backend/requirements.txt") from exc
-
-    try:
-        reader = PdfReader(str(path))
-        raw_text = "\n".join(page.extract_text() or "" for page in reader.pages)
-    except Exception as exc:  # pypdf exposes several parser-specific exception types.
-        raise ResumeError("PDF 无法解析，请确认文件未损坏") from exc
-
-    text = re.sub(r"\n{3,}", "\n\n", raw_text).strip()
-    if len(text) > MAX_RESUME_TEXT_CHARS:
-        text = text[:MAX_RESUME_TEXT_CHARS].rstrip() + "\n[简历文本已截断]"
-    return text
+        content = Path(path).read_bytes()
+        return extract_pdf_text_from_bytes(
+            Path(path).name,
+            content,
+            max_chars=MAX_RESUME_TEXT_CHARS,
+            truncation_marker="简历文本已截断",
+        )
+    except DocumentImportError as exc:
+        raise ResumeError(str(exc)) from exc
+    except OSError as exc:
+        raise ResumeError("PDF 无法读取") from exc
 
 
 def get_resume_text(user_id: str, data_dir: str | Path) -> tuple[str, str]:
@@ -66,18 +67,15 @@ def get_resume_status(user_id: str, data_dir: str | Path) -> dict[str, object]:
 
 
 def save_resume(user_id: str, filename: str | None, content: bytes, data_dir: str | Path) -> dict[str, object]:
-    if not filename:
-        raise ResumeError("请选择 PDF 文件")
-    if "/" in filename or "\\" in filename or Path(filename).name != filename:
-        raise ResumeError("文件名不能包含路径")
-    if not filename.lower().endswith(".pdf"):
-        raise ResumeError("目前只支持 PDF 简历")
-    if not content:
-        raise ResumeError("文件内容为空")
-    if len(content) > MAX_RESUME_BYTES:
-        raise ResumeError("PDF 文件不能超过 20 MB")
-    if b"%PDF-" not in content[:1024]:
-        raise ResumeError("文件不是有效的 PDF")
+    try:
+        text = extract_pdf_text_from_bytes(
+            filename,
+            content,
+            max_chars=MAX_RESUME_TEXT_CHARS,
+            truncation_marker="简历文本已截断",
+        )
+    except DocumentImportError as exc:
+        raise ResumeError(str(exc)) from exc
 
     directory = _resume_directory(user_id, data_dir)
     directory.mkdir(parents=True, exist_ok=True)
@@ -85,8 +83,7 @@ def save_resume(user_id: str, filename: str | None, content: bytes, data_dir: st
     final_path = directory / filename
     temp_path.write_bytes(content)
     try:
-        # Parse before replacing the old file, so a malformed upload does not destroy it.
-        text = extract_pdf_text(temp_path)
+        # The bytes were parsed before replacing the old file, so a malformed upload cannot destroy it.
         temp_path.replace(final_path)
         for old_path in _resume_files(user_id, data_dir):
             if old_path != final_path:

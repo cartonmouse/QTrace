@@ -119,12 +119,89 @@ def _question_blueprint(position: str, focus_areas: list[dict[str, str]]) -> lis
     ]
 
 
+def _project_matches(
+    skills: list[tuple[str, str, int]],
+    structured_profile: dict[str, Any] | None,
+    focus_areas: list[dict[str, str]] | None = None,
+) -> list[dict[str, Any]]:
+    """Map JD skills to user-authored projects without asking an LLM to invent fit."""
+    if not structured_profile:
+        return []
+    projects = structured_profile.get("projects") or []
+    focus_by_skill = {str(item.get("area", "")): item for item in focus_areas or []}
+    field_weights = {"technologies": 3, "role": 2, "highlights": 2, "description": 1}
+    matches: list[dict[str, Any]] = []
+    for project_index, project in enumerate(projects[:8]):
+        if not isinstance(project, dict) or not str(project.get("name", "")).strip():
+            continue
+        project_name = str(project["name"]).strip()
+        field_text = {
+            "description": str(project.get("description", "")),
+            "role": str(project.get("role", "")),
+            "technologies": " ".join(str(item) for item in project.get("technologies", []) or []),
+            "highlights": " ".join(str(item) for item in project.get("highlights", []) or []),
+        }
+        project_matches: list[dict[str, Any]] = []
+        for skill, category, count in skills:
+            aliases = next(
+                (catalog_aliases for catalog_skill, catalog_aliases, _ in SKILL_CATALOG if catalog_skill == skill),
+                (skill,),
+            )
+            evidence_fields = [
+                field for field, text in field_text.items() if _contains_skill(text, aliases)
+            ]
+            if evidence_fields:
+                focus = focus_by_skill.get(skill, {})
+                priority = str(focus.get("priority", "normal"))
+                priority_weight = {"high": 2, "medium": 1, "normal": 0}.get(priority, 0)
+                score = count * 2 + priority_weight + sum(
+                    field_weights.get(field, 1) for field in evidence_fields
+                )
+                project_matches.append(
+                    {
+                        "skill": skill,
+                        "category": category,
+                        "count": count,
+                        "priority": priority,
+                        "score": score,
+                        "evidence_fields": evidence_fields,
+                    }
+                )
+        if not project_matches:
+            continue
+        project_matches.sort(key=lambda item: (-int(item["score"]), item["skill"]))
+        matched_skills = [item["skill"] for item in project_matches]
+        evidence_fields = list(
+            dict.fromkeys(field for item in project_matches for field in item["evidence_fields"])
+        )
+        verification_card = any(item["skill"] in {"评测", "性能优化"} for item in project_matches)
+        card_number = 4 if verification_card else 3
+        matches.append(
+            {
+                "project_name": project_name,
+                "focus_area": matched_skills[0],
+                "matched_skills": matched_skills[:6],
+                "evidence_fields": evidence_fields,
+                "priority": project_matches[0]["priority"],
+                "score": sum(int(item["score"]) for item in project_matches),
+                "question_card_id": f"project-{project_index + 1}-question-{card_number}",
+                "reason": (
+                    f"项目的 { '、'.join(evidence_fields) } 字段命中 { '、'.join(matched_skills) }，"
+                    f"最高岗位优先级为 {project_matches[0]['priority']}；"
+                    "建议用该项目回答岗位技术落地和验证问题。"
+                ),
+            }
+        )
+    return sorted(matches, key=lambda item: (-int(item["score"]), item["project_name"]))[:8]
+
+
 def analyze_jd(
     jd_text: str,
     *,
     company: str | None = None,
     position: str | None = None,
     resume_text: str = "",
+    structured_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     clean_jd = _clean(jd_text)
     clean_company = _clean(company)
@@ -150,6 +227,7 @@ def analyze_jd(
         for skill in matching[:3]
     ]
     blueprint = _question_blueprint(clean_position, focus_areas)
+    project_matches = _project_matches(skills, structured_profile, focus_areas)
     priorities = [
         f"为 {skill} 准备一个包含背景、行动、结果和指标的项目故事"
         for skill in jd_skills[:4]
@@ -196,6 +274,7 @@ def analyze_jd(
         },
         "prep_priorities": priorities,
         "question_blueprint": blueprint,
+        "project_matches": project_matches,
         "jd_excerpt": clean_jd[:1500],
         "detected_skills": jd_skills,
     }

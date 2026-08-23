@@ -1,0 +1,223 @@
+.qtrace-settings-page {
+  --qtrace-settings-ink: var(--qtrace-ink, #17201f);
+  --qtrace-settings-muted: var(--qtrace-muted, #6b7470);
+  --qtrace-settings-line: var(--qtrace-line, rgba(23, 32, 31, 0.14));
+  --qtrace-settings-strong-line: var(--qtrace-line-strong, rgba(23, 32, 31, 0.24));
+  --qtrace-settings-panel: var(--qtrace-panel, #fcfbf7);
+  --qtrace-settings-raised: var(--qtrace-panel-raised, #ffffff);
+  --qtrace-settings-signal: var(--qtrace-signal, #b84e3b);
+  --qtrace-settings-signal-soft: var(--qtrace-signal-soft, rgba(184, 78, 59, 0.11));
+  color: var(--qtrace-settings-ink);
+}
+
+.qtrace-settings-heading {
+  padding-bottom: 1.45rem;
+  border-bottom: 1px solid var(--qtrace-settings-strong-line);
+}
+
+.qtrace-settings-index,
+.qtrace-settings-status-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.qtrace-settings-index,
+.qtrace-settings-status-cell strong[data-qtrace-state="fail"],
+.qtrace-settings-result-fail {
+  color: var(--qtrace-settings-signal) !important;
+}
+
+.qtrace-settings-title {
+  margin-top: 0.52rem;
+  letter-spacing: -0.06em;
+}
+
+.qtrace-settings-lede {
+  max-width: 44rem;
+  margin-top: 0.7rem !important;
+  color: var(--qtrace-settings-muted) !important;
+  line-height: 1.75;
+}
+
+.qtrace-settings-status-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 0 1.25rem;
+  border-top: 1px solid var(--qtrace-settings-line);
+  border-bottom: 1px solid var(--qtrace-settings-line);
+}
+
+.qtrace-settings-status-cell {
+  min-width: 0;
+  min-height: 7rem;
+  padding: 1rem 1.1rem 1.05rem;
+  border-left: 1px solid var(--qtrace-settings-line);
+}
+
+.qtrace-settings-status-cell:first-child {
+  border-left: 0;
+}
+
+.qtrace-settings-status-label {
+  display: block;
+  color: var(--qtrace-settings-muted);
+}
+
+.qtrace-settings-status-cell strong {
+  display: block;
+  margin-top: 0.65rem;
+  color: var(--qtrace-settings-ink);
+  font-size: 1.05rem;
+  letter-spacing: -0.025em;
+}
+
+.qtrace-settings-status-cell strong[data-qtrace-state="ok"],
+.qtrace-settings-result-ok {
+  color: #2e795c !important;
+}
+
+.dark .qtrace-settings-status-cell strong[data-qtrace-state="ok"],
+.dark .qtrace-settings-result-ok {
+  color: #8cc8a8 !important;
+}
+
+.qtrace-settings-status-cell strong[data-qtrace-state="testing"] {
+  color: var(--qtrace-settings-signal) !important;
+}
+
+.qtrace-settings-status-cell small {
+  display: block;
+  overflow: hidden;
+  margin-top: 0.42rem;
+  color: var(--qtrace-settings-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qtrace-settings-global-error {
+  margin: -0.35rem 0 1.25rem;
+  padding: 0.8rem 0.95rem;
+  border-left: 3px solid var(--qtrace-settings-signal);
+  background: var(--qtrace-settings-signal-soft);
+  color: var(--qtrace-settings-signal);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
+.qtrace-settings-rail button,
+.qtrace-settings-action,
+.qtrace-settings-card,
+.qtrace-settings-card [class*="rounded-"] {
+  border-radius: 0 !important;
+}
+
+.qtrace-settings-rail button {
+  border-left: 2px solid transparent;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.qtrace-settings-rail button:hover,
+.qtrace-settings-rail button:focus-visible {
+  border-left-color: var(--qtrace-settings-signal);
+  background: var(--qtrace-settings-signal-soft) !important;
+  outline: none;
+}
+
+.qtrace-settings-card {
+  border-color: var(--qtrace-settings-line) !important;
+  background: var(--qtrace-settings-panel) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.qtrace-settings-card:first-child,
+.qtrace-settings-content > .qtrace-settings-card:nth-child(2) {
+  border-top: 3px solid var(--qtrace-settings-signal) !important;
+}
+
+.qtrace-settings-card input,
+.qtrace-settings-card textarea,
+.qtrace-settings-card select {
+  border-radius: 0 !important;
+  border-color: var(--qtrace-settings-line) !important;
+  background: var(--qtrace-settings-raised) !important;
+  color: var(--qtrace-settings-ink) !important;
+  box-shadow: none !important;
+}
+
+.qtrace-settings-card input:focus,
+.qtrace-settings-card textarea:focus,
+.qtrace-settings-card select:focus {
+  border-color: var(--qtrace-settings-signal) !important;
+  outline: 2px solid var(--qtrace-settings-signal-soft);
+  outline-offset: 1px;
+}
+
+.qtrace-settings-action {
+  border-color: var(--qtrace-settings-strong-line) !important;
+  background: transparent !important;
+  color: var(--qtrace-settings-ink) !important;
+}
+
+.qtrace-settings-action:hover:not(:disabled),
+.qtrace-settings-action:focus-visible {
+  border-color: var(--qtrace-settings-signal) !important;
+  background: var(--qtrace-settings-signal-soft) !important;
+  color: var(--qtrace-settings-ink) !important;
+}
+
+.qtrace-settings-test-row {
+  border-top-color: var(--qtrace-settings-line) !important;
+}
+
+.qtrace-settings-result {
+  max-width: 100%;
+  line-height: 1.5;
+}
+
+.qtrace-settings-result-fail {
+  overflow-wrap: anywhere;
+}
+
+.qtrace-settings-savebar {
+  border-top-color: var(--qtrace-settings-strong-line) !important;
+  background: color-mix(in srgb, var(--qtrace-settings-panel) 94%, transparent) !important;
+  backdrop-filter: none !important;
+}
+
+.qtrace-settings-savebar [data-state="open"],
+.qtrace-settings-savebar button {
+  border-radius: 0 !important;
+}
+
+@media (max-width: 760px) {
+  .qtrace-settings-status-board {
+    grid-template-columns: 1fr;
+  }
+
+  .qtrace-settings-status-cell {
+    min-height: auto;
+    border-top: 1px solid var(--qtrace-settings-line);
+    border-left: 0;
+  }
+
+  .qtrace-settings-status-cell:first-child {
+    border-top: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qtrace-settings-page *,
+  .qtrace-settings-page *::before,
+  .qtrace-settings-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

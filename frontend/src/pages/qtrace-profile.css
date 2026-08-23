@@ -1,0 +1,173 @@
+.qtrace-profile-page {
+  --qtrace-profile-ink: var(--qtrace-ink, #17201f);
+  --qtrace-profile-muted: var(--qtrace-muted, #6b7470);
+  --qtrace-profile-line: var(--qtrace-line, rgba(23, 32, 31, 0.14));
+  --qtrace-profile-strong-line: var(--qtrace-line-strong, rgba(23, 32, 31, 0.24));
+  --qtrace-profile-panel: var(--qtrace-panel, #fcfbf7);
+  --qtrace-profile-signal: var(--qtrace-signal, #b84e3b);
+  --qtrace-profile-signal-soft: var(--qtrace-signal-soft, rgba(184, 78, 59, 0.11));
+  color: var(--qtrace-profile-ink);
+}
+
+.qtrace-profile-heading {
+  padding: 0 0 1.6rem;
+  border-bottom: 1px solid var(--qtrace-profile-strong-line);
+}
+
+.qtrace-profile-index,
+.qtrace-profile-section-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.qtrace-profile-index {
+  color: var(--qtrace-profile-signal);
+}
+
+.qtrace-profile-title {
+  margin-top: 0.55rem;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: -0.075em;
+  line-height: 1;
+}
+
+.qtrace-profile-heading > p {
+  max-width: 36rem;
+  margin: 0.9rem 0 0;
+  color: var(--qtrace-profile-muted);
+  font-size: 0.95rem;
+  line-height: 1.75;
+}
+
+.qtrace-profile-heading > div:last-child:not(.qtrace-profile-title) {
+  color: var(--qtrace-profile-muted);
+}
+
+.qtrace-profile-surface {
+  border-color: var(--qtrace-profile-line) !important;
+  border-radius: 0 !important;
+  background: var(--qtrace-profile-panel) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.qtrace-profile-surface [class*="rounded-"] {
+  border-radius: 0 !important;
+}
+
+.qtrace-profile-empty {
+  border-top: 3px solid var(--qtrace-profile-signal) !important;
+}
+
+.qtrace-profile-empty-content {
+  display: grid;
+  gap: 2rem;
+}
+
+.qtrace-profile-badge {
+  border-radius: 0 !important;
+  border: 1px solid var(--qtrace-profile-signal) !important;
+  background: transparent !important;
+  color: var(--qtrace-profile-signal) !important;
+}
+
+.qtrace-profile-empty-title {
+  max-width: 24ch;
+  color: var(--qtrace-profile-ink);
+  letter-spacing: -0.06em;
+}
+
+.qtrace-profile-empty-lede {
+  max-width: 44rem;
+  color: var(--qtrace-profile-muted);
+}
+
+.qtrace-profile-section-label {
+  color: var(--qtrace-profile-muted);
+}
+
+.qtrace-profile-route-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.qtrace-profile-route-card {
+  min-height: 12rem;
+  border-color: var(--qtrace-profile-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--qtrace-profile-ink);
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.qtrace-profile-route-card:hover,
+.qtrace-profile-route-card:focus-visible {
+  border-color: var(--qtrace-profile-signal) !important;
+  background: var(--qtrace-profile-signal-soft) !important;
+  transform: none !important;
+}
+
+.qtrace-profile-route-card:focus-visible {
+  outline: 2px solid var(--qtrace-profile-signal);
+  outline-offset: 3px;
+}
+
+.qtrace-profile-route-icon {
+  width: 2.3rem;
+  height: 2.3rem;
+  border-color: var(--qtrace-profile-signal) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--qtrace-profile-signal) !important;
+}
+
+.qtrace-profile-route-title {
+  color: var(--qtrace-profile-ink) !important;
+  font-size: 1.05rem !important;
+}
+
+.qtrace-profile-route-desc {
+  color: var(--qtrace-profile-muted) !important;
+}
+
+.qtrace-profile-route-hint {
+  margin-top: auto;
+  color: var(--qtrace-profile-signal) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.qtrace-profile-stat-grid > div {
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--qtrace-profile-line);
+}
+
+.qtrace-profile-stat-grid > div:first-child {
+  border-left-color: var(--qtrace-profile-signal);
+}
+
+@media (max-width: 760px) {
+  .qtrace-profile-route-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .qtrace-profile-empty-content {
+    gap: 1.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qtrace-profile-page *,
+  .qtrace-profile-page *::before,
+  .qtrace-profile-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

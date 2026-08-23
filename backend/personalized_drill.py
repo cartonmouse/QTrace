@@ -22,6 +22,7 @@ class DrillQuestionGenerator(Protocol):
         topic_profile: Mapping[str, Any] | None,
         due_reviews: list[Mapping[str, Any]],
         recent_sessions: list[Mapping[str, Any]],
+        requested_focus: str = "",
     ) -> dict[str, Any]: ...
 
 
@@ -147,10 +148,21 @@ class StubDrillQuestionGenerator:
         topic_profile: Mapping[str, Any] | None,
         due_reviews: list[Mapping[str, Any]],
         recent_sessions: list[Mapping[str, Any]],
+        requested_focus: str = "",
     ) -> dict[str, Any]:
         del knowledge_context, recent_sessions
         focus, reason = _focus_for_profile(topic_profile)
+        requested_focus = requested_focus.strip()[:200]
         due_items: list[dict[str, Any]] = []
+        if requested_focus:
+            due_items.append(
+                {
+                    "question": f"请围绕学习计划焦点「{requested_focus}」回答一个专项问题，说明原理、工程取舍和验证方式。",
+                    "focus": requested_focus,
+                    "difficulty": 3,
+                    "reason": "该问题由当前学习计划项指定，作为本轮专项训练的首要关注点。",
+                }
+            )
         for item in due_reviews[:5]:
             point = str(item.get("point", "")).strip()
             if not point:
@@ -222,6 +234,7 @@ class LLMDrillQuestionGenerator:
         topic_profile: Mapping[str, Any] | None,
         due_reviews: list[Mapping[str, Any]],
         recent_sessions: list[Mapping[str, Any]],
+        requested_focus: str = "",
     ) -> dict[str, Any]:
         system_prompt = (
             "你是问迹 QTrace 的专项面试出题器。只返回 JSON 对象，不要 Markdown。"
@@ -230,7 +243,7 @@ class LLMDrillQuestionGenerator:
             "生成 4 到 8 道互不重复的中文面试题；difficulty 为 1 到 5。"
             "必须优先覆盖 due_reviews 中的到期薄弱点，再结合画像掌握度、趋势、长期薄弱点、"
             "最近训练和本地知识上下文安排难度。题目应能追问原理、工程取舍、验证或故障排查，"
-            "不要编造用户没有提供的经历。"
+            "不要编造用户没有提供的经历；如果 plan_focus 非空，至少有一道题要直接覆盖这个计划焦点。"
         )
         payload = {
             "topic": topic,
@@ -239,6 +252,7 @@ class LLMDrillQuestionGenerator:
             "topic_profile": dict(topic_profile or {}),
             "due_reviews": [dict(item) for item in due_reviews[:12]],
             "recent_sessions": [dict(item) for item in recent_sessions[:8]],
+            "plan_focus": requested_focus[:200],
             "knowledge_context": knowledge_context[:8_000],
             "high_frequency_questions": question_bank[:12],
         }

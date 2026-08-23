@@ -1,6 +1,11 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+qtrace_stage*_pytest_tmp/
+qtrace_stage*_formal_pytest_tmp/
+qtrace_stage*_target_tmp/
+qtrace_stage*_tmp/
+qtrace_*/
 .venv/
 data/
 *.sqlite3
@@ -10,3 +15,6 @@ frontend/node_modules/
 frontend/dist/
 frontend/tsconfig.tsbuildinfo
 
+*.log
+.env.*
+!.env.example

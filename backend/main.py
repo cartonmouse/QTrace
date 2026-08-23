@@ -10,11 +10,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from .agent import build_agent_model, run_personal_agent
+from .agent import AgentProviderError, build_agent_model, run_personal_agent
 from .config import DB_PATH, JWT_SECRET, TOKEN_TTL_SECONDS
 from .copilot import build_copilot_prep, copilot_event_sequence
+from .graph import build_topic_feedback_report, build_topic_graph, resolve_graph_question_entry
 from .interview import InterviewEngine
 from .jd import analyze_jd, build_jd_context, build_jd_question_bank
+from .document_import import (
+    DocumentImportError,
+    MAX_PDF_BYTES,
+    extract_markdown_text_from_bytes,
+    extract_pdf_text_from_bytes,
+)
+from .embedding import EmbeddingProviderError, build_embedding_provider
+from .personal_documents import MAX_DOCUMENT_CHARS, PersonalDocumentError, PersonalDocumentService
 from .recording import (
     LLMRecordingAnalyzer,
     RecordingAnalysisError,
@@ -26,6 +35,15 @@ from .models import (
     AgentChatView,
     AgentConversationDetailView,
     AgentConversationView,
+    EmbeddingSettingsUpdate,
+    PersonalDocumentCreateRequest,
+    PersonalDocumentUpdateRequest,
+    PersonalDocumentSearchResult,
+    PersonalDocumentView,
+    PersonalDocumentVersionDetailView,
+    PersonalDocumentVersionView,
+    PersonalDocumentReindexView,
+    LearningPlanView,
     AuthResponse,
     CopilotPrepRequest,
     CopilotPrepView,
@@ -42,10 +60,17 @@ from .models import (
     SettingsView,
     ResumeStatusView,
     ResumeTextView,
+    ResumeEditorSaveRequest,
+    ResumeEditorVersionDetailView,
+    ResumeEditorVersionView,
+    ResumeEditorView,
+    ResumeQuestionCardView,
     RecordingAnalyzeRequest,
     StartInterviewRequest,
     TopicMasteryView,
     TopicCreateRequest,
+    TopicGraphView,
+    TopicGraphFeedbackView,
     UserView,
 )
 from .provider import OpenAICompatibleProvider, ProviderError, StubProvider
@@ -64,6 +89,7 @@ from .knowledge import (
     update_high_freq,
 )
 from .resume import ResumeError, delete_resume, get_resume_file, get_resume_status, get_resume_text, save_resume
+from .structured_resume import StructuredResumeError, StructuredResumeService
 from .security import create_access_token, decode_access_token, verify_password
 from .store import Store
 
@@ -81,8 +107,23 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
         allow_headers=["*"],
     )
     app.state.store = Store(db_path or DB_PATH)
+    app.state.personal_documents = PersonalDocumentService(app.state.store)
+    app.state.structured_resume = StructuredResumeService(app.state.store)
     app.state.jwt_secret = jwt_secret or JWT_SECRET
     app.state.data_dir = Path(db_path or DB_PATH).parent
+
+    def personal_documents_for(request: Request, user: dict[str, Any]) -> PersonalDocumentService:
+        try:
+            provider = build_embedding_provider(request.app.state.store.get_embedding_config(user["id"]))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return PersonalDocumentService(request.app.state.store, provider)
+
+    def settings_view(values: dict[str, Any]) -> SettingsView:
+        return SettingsView(
+            **values,
+            needs_onboarding=not (values["llm_configured"] and values["embedding_configured"]),
+        )
 
     def current_user(
         request: Request,
@@ -165,6 +206,7 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
             phase_question_count=session["phase_question_count"],
             is_finished=session["is_finished"],
             messages=session["messages"],
+            question_bank=session.get("question_bank", []),
             review=session["review"],
             mode=session.get("mode", "resume"),
             topic=session.get("topic"),
@@ -175,6 +217,18 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
                 "recording_analysis_mode",
                 (session.get("recording_meta") or {}).get("analysis_mode", ""),
             ),
+            learning_plan_id=session.get("learning_plan_id"),
+            learning_plan_item_id=session.get("learning_plan_item_id"),
+            question_card_id=session.get("question_card_id"),
+            question_card_project=session.get("question_card_project", ""),
+            question_card_resume_version=session.get("question_card_resume_version"),
+            graph_question_id=session.get("graph_question_id"),
+            graph_question=session.get("graph_question", ""),
+            graph_entry_source=session.get("graph_entry_source", ""),
+            graph_parent_question_id=session.get("graph_parent_question_id"),
+            graph_parent_question=session.get("graph_parent_question", ""),
+            created_at=session.get("created_at", ""),
+            updated_at=session.get("updated_at", ""),
         )
 
     def copilot_view(prep: dict[str, Any]) -> CopilotPrepView:
@@ -220,7 +274,7 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
     @app.get("/api/settings", response_model=SettingsView)
     def get_settings(request: Request, user: dict[str, Any] = Depends(current_user)) -> SettingsView:
         values = request.app.state.store.get_settings(user["id"])
-        return SettingsView(**values, needs_onboarding=not (values["llm_configured"] and values["embedding_configured"]))
+        return settings_view(values)
 
     @app.put("/api/settings", response_model=SettingsView)
     def update_settings(payload: SettingsUpdate, request: Request, user: dict[str, Any] = Depends(current_user)) -> SettingsView:
@@ -233,7 +287,26 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
                 )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return SettingsView(**values, needs_onboarding=not (values["llm_configured"] and values["embedding_configured"]))
+        return settings_view(values)
+
+    @app.put("/api/settings/embedding", response_model=SettingsView)
+    def update_embedding_settings(
+        payload: EmbeddingSettingsUpdate,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> SettingsView:
+        try:
+            if payload.mode == "demo":
+                values = request.app.state.store.set_embedding_demo(user["id"])
+            elif payload.mode == "local-model":
+                values = request.app.state.store.set_local_embedding(user["id"], payload.model_path)
+            else:
+                values = request.app.state.store.set_openai_embedding(
+                    user["id"], payload.api_base, payload.model, payload.api_key
+                )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return settings_view(values)
 
     @app.get("/api/resume/status", response_model=ResumeStatusView)
     def resume_status(request: Request, user: dict[str, Any] = Depends(current_user)) -> ResumeStatusView:
@@ -274,12 +347,102 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
     def remove_resume(request: Request, user: dict[str, Any] = Depends(current_user)) -> dict[str, bool]:
         return {"deleted": delete_resume(user["id"], request.app.state.data_dir)}
 
+    @app.get("/api/resume/editor", response_model=ResumeEditorView)
+    def get_resume_editor(
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> ResumeEditorView:
+        return ResumeEditorView(**request.app.state.structured_resume.get_profile(user["id"]))
+
+    @app.put("/api/resume/editor", response_model=ResumeEditorView)
+    def save_resume_editor(
+        payload: ResumeEditorSaveRequest,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> ResumeEditorView:
+        try:
+            profile = request.app.state.structured_resume.save_profile(
+                user["id"], payload.model_dump()
+            )
+        except StructuredResumeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return ResumeEditorView(**profile)
+
+    @app.get("/api/resume/editor/question-cards", response_model=list[ResumeQuestionCardView])
+    def get_resume_question_cards(
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> list[ResumeQuestionCardView]:
+        cards = request.app.state.structured_resume.question_cards(user["id"])
+        document_service = personal_documents_for(request, user)
+        for card in cards:
+            card["evidence"] = document_service.search(
+                user["id"], str(card["document_query"]), limit=3
+            )
+        return [ResumeQuestionCardView(**card) for card in cards]
+
+    @app.get("/api/resume/editor/versions", response_model=list[ResumeEditorVersionView])
+    def list_resume_editor_versions(
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> list[ResumeEditorVersionView]:
+        return [
+            ResumeEditorVersionView(**item)
+            for item in request.app.state.structured_resume.list_versions(user["id"])
+        ]
+
+    @app.get(
+        "/api/resume/editor/versions/{version}",
+        response_model=ResumeEditorVersionDetailView,
+    )
+    def get_resume_editor_version(
+        version: int,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> ResumeEditorVersionDetailView:
+        if version < 1:
+            raise HTTPException(status_code=400, detail="简历版本号无效")
+        item = request.app.state.structured_resume.get_version(user["id"], version)
+        if item is None:
+            raise HTTPException(status_code=404, detail="简历版本不存在")
+        return ResumeEditorVersionDetailView(**item)
+
     @app.get("/api/topics")
     def topics(request: Request, user: dict[str, Any] = Depends(current_user)) -> dict[str, dict[str, str]]:
         try:
             return list_topics(user["id"], request.app.state.data_dir)
         except KnowledgeError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/graph/{topic}", response_model=TopicGraphView)
+    def topic_graph(topic: str, request: Request, user: dict[str, Any] = Depends(current_user)) -> TopicGraphView:
+        try:
+            graph = build_topic_graph(
+                user["id"],
+                topic,
+                request.app.state.data_dir,
+                request.app.state.store,
+            )
+        except KnowledgeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return TopicGraphView(**graph)
+
+    @app.get("/api/graph/{topic}/feedback", response_model=TopicGraphFeedbackView)
+    def topic_graph_feedback(
+        topic: str,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> TopicGraphFeedbackView:
+        try:
+            report = build_topic_feedback_report(
+                user["id"],
+                topic,
+                request.app.state.data_dir,
+                request.app.state.store,
+            )
+        except KnowledgeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return TopicGraphFeedbackView(**report)
 
     @app.post("/api/topics")
     def add_topic(
@@ -422,9 +585,9 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
             return ""
         try:
             resume_text, _ = get_resume_text(user["id"], request.app.state.data_dir)
-            return resume_text
         except ResumeError:
-            return ""
+            resume_text = ""
+        return resume_text or request.app.state.structured_resume.get_context(user["id"])
 
     @app.post("/api/job-prep/preview")
     def job_prep_preview(
@@ -440,6 +603,11 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
             company=payload.company,
             position=payload.position,
             resume_text=job_resume_context(request, user, payload.use_resume),
+            structured_profile=(
+                request.app.state.structured_resume.get_profile(user["id"]).get("profile", {})
+                if payload.use_resume
+                else None
+            ),
         )
         return {"preview": preview}
 
@@ -466,6 +634,11 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
             company=payload.company,
             position=payload.position,
             resume_text=resume_text,
+            structured_profile=(
+                request.app.state.structured_resume.get_profile(user["id"]).get("profile", {})
+                if payload.use_resume
+                else None
+            ),
         )
         company = str(preview.get("company") or payload.company or "").strip()
         position = str(preview.get("position") or payload.position or "").strip()
@@ -607,22 +780,290 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
         request: Request,
         user: dict[str, Any] = Depends(current_user),
     ) -> AgentChatView:
+        clean_topic = (payload.topic or "").strip() or None
+        clean_graph_question_id = (payload.graph_question_id or "").strip() or None
+        clean_graph_entry_source = (payload.graph_entry_source or "").strip() or None
+        clean_graph_parent_question_id = (payload.graph_parent_question_id or "").strip() or None
+        if clean_topic:
+            try:
+                available_topics = list_topics(user["id"], request.app.state.data_dir)
+            except KnowledgeError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            if clean_topic not in available_topics:
+                raise HTTPException(status_code=400, detail="Agent 主题不存在")
+        graph_entry: dict[str, str] | None = None
+        if clean_graph_question_id:
+            if not clean_topic:
+                raise HTTPException(status_code=400, detail="Agent 图谱问题需要同时提供主题")
+            try:
+                graph_entry = resolve_graph_question_entry(
+                    user["id"],
+                    clean_topic,
+                    clean_graph_question_id,
+                    str(request.app.state.data_dir),
+                    request.app.state.store,
+                    entry_source=clean_graph_entry_source,
+                    parent_question_id=clean_graph_parent_question_id,
+                )
+            except KnowledgeError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            if not graph_entry:
+                raise HTTPException(status_code=400, detail="Agent 图谱问题不存在或不属于当前主题")
+        elif clean_graph_entry_source or clean_graph_parent_question_id:
+            raise HTTPException(status_code=400, detail="图谱来源字段需要同时提供图谱问题")
         try:
+            document_service = personal_documents_for(request, user)
             result = run_personal_agent(
                 message=payload.message,
                 user_id=user["id"],
                 store=request.app.state.store,
                 data_dir=request.app.state.data_dir,
                 model=agent_model_for(request, user),
+                document_service=document_service,
+                structured_resume_service=request.app.state.structured_resume,
                 conversation_id=payload.conversation_id,
+                question_card_id=payload.question_card_id,
+                topic=clean_topic,
+                graph_question_id=clean_graph_question_id,
+                graph_entry_source=graph_entry["entry_source"] if graph_entry else None,
+                graph_parent_question_id=graph_entry["parent_question_id"] if graph_entry else None,
             )
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except AgentProviderError as exc:
+            stage_label = {"planning": "规划", "answering": "回答"}.get(exc.stage, "处理")
+            detail = {
+                "code": f"agent_{exc.stage}_failed",
+                "stage": exc.stage,
+                "message": f"Agent {stage_label}失败，请检查模型设置或稍后重试。",
+                "retryable": True,
+                "state": exc.state,
+            }
+            if exc.conversation_id and exc.state == "preserved_draft":
+                detail["conversation_id"] = exc.conversation_id
+            raise HTTPException(
+                status_code=502,
+                detail=detail,
+            ) from exc
         except ProviderError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "code": "agent_provider_error",
+                    "stage": "initialization",
+                    "message": "Agent 模型服务未就绪，请检查模型设置。",
+                    "retryable": False,
+                },
+            ) from exc
+        except EmbeddingProviderError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         return AgentChatView(**result)
+
+    @app.get("/api/agent/documents", response_model=list[PersonalDocumentView])
+    def agent_personal_documents(
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> list[PersonalDocumentView]:
+        document_service = personal_documents_for(request, user)
+        return [
+            PersonalDocumentView(**item)
+            for item in document_service.list_documents(user["id"])
+        ]
+
+    @app.post("/api/agent/documents/reindex", response_model=PersonalDocumentReindexView)
+    def reindex_agent_personal_documents(
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> PersonalDocumentReindexView:
+        try:
+            result = personal_documents_for(request, user).reindex_all(user["id"])
+        except EmbeddingProviderError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return PersonalDocumentReindexView(**result)
+
+    @app.post("/api/agent/documents", response_model=PersonalDocumentView)
+    def add_agent_personal_document(
+        payload: PersonalDocumentCreateRequest,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> PersonalDocumentView:
+        try:
+            document = personal_documents_for(request, user).add_document(
+                user["id"],
+                title=payload.title,
+                content=payload.content,
+                source_type=payload.source_type,
+            )
+        except PersonalDocumentError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except EmbeddingProviderError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return PersonalDocumentView(**document)
+
+    @app.post("/api/agent/documents/upload", response_model=PersonalDocumentView)
+    async def upload_agent_personal_document(
+        request: Request,
+        file: UploadFile = File(...),
+        user: dict[str, Any] = Depends(current_user),
+    ) -> PersonalDocumentView:
+        filename = file.filename or ""
+        content = await file.read(MAX_PDF_BYTES + 1)
+        try:
+            suffix = Path(filename).suffix.lower()
+            if suffix == ".pdf":
+                text = extract_pdf_text_from_bytes(filename, content, max_chars=MAX_DOCUMENT_CHARS)
+                source_type = "pdf"
+                empty_message = "PDF 中没有可提取的文字；扫描件暂不支持 OCR"
+            elif suffix in {".md", ".markdown"}:
+                text = extract_markdown_text_from_bytes(filename, content, max_chars=MAX_DOCUMENT_CHARS)
+                source_type = "markdown"
+                empty_message = "Markdown 文件内容为空"
+            else:
+                raise DocumentImportError("目前只支持 PDF、.md 或 .markdown 文件")
+            if not text:
+                raise DocumentImportError(empty_message)
+            document = personal_documents_for(request, user).add_document(
+                user["id"],
+                title=Path(filename).stem,
+                content=text,
+                source_type=source_type,
+            )
+        except (DocumentImportError, PersonalDocumentError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except EmbeddingProviderError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return PersonalDocumentView(**document)
+
+    @app.get("/api/agent/documents/search", response_model=list[PersonalDocumentSearchResult])
+    def search_agent_personal_documents(
+        request: Request,
+        q: str = "",
+        limit: int = 5,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> list[PersonalDocumentSearchResult]:
+        query = q.strip()
+        if len(query) > 2_000:
+            raise HTTPException(status_code=400, detail="检索问题不能超过 2000 字")
+        if limit < 1 or limit > 8:
+            raise HTTPException(status_code=400, detail="检索数量需要在 1 到 8 之间")
+        document_service = personal_documents_for(request, user)
+        return [
+            PersonalDocumentSearchResult(**item)
+            for item in document_service.search(
+                user["id"], query, limit=limit
+            )
+        ]
+
+    @app.put("/api/agent/documents/{document_id}", response_model=PersonalDocumentView)
+    def update_agent_personal_document(
+        document_id: str,
+        payload: PersonalDocumentUpdateRequest,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> PersonalDocumentView:
+        try:
+            document = personal_documents_for(request, user).update_document(
+                user["id"],
+                document_id,
+                title=payload.title,
+                content=payload.content,
+                source_type=payload.source_type,
+            )
+        except PersonalDocumentError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except EmbeddingProviderError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        if document is None:
+            raise HTTPException(status_code=404, detail="个人文档不存在")
+        return PersonalDocumentView(**document)
+
+    @app.get(
+        "/api/agent/documents/{document_id}/versions",
+        response_model=list[PersonalDocumentVersionView],
+    )
+    def list_agent_personal_document_versions(
+        document_id: str,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> list[PersonalDocumentVersionView]:
+        versions = personal_documents_for(request, user).list_versions(user["id"], document_id)
+        if not versions:
+            raise HTTPException(status_code=404, detail="个人文档不存在")
+        return [PersonalDocumentVersionView(**item) for item in versions]
+
+    @app.get(
+        "/api/agent/documents/{document_id}/versions/{version}",
+        response_model=PersonalDocumentVersionDetailView,
+    )
+    def get_agent_personal_document_version(
+        document_id: str,
+        version: int,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> PersonalDocumentVersionDetailView:
+        if version < 1:
+            raise HTTPException(status_code=400, detail="文档版本号无效")
+        item = personal_documents_for(request, user).get_version(user["id"], document_id, version)
+        if item is None:
+            raise HTTPException(status_code=404, detail="个人文档版本不存在")
+        return PersonalDocumentVersionDetailView(**item)
+
+    @app.get("/api/agent/plans", response_model=list[LearningPlanView])
+    def agent_learning_plans(
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> list[LearningPlanView]:
+        return [
+            LearningPlanView(**item)
+            for item in request.app.state.store.list_learning_plans(user["id"])
+        ]
+
+    @app.get("/api/agent/plans/{plan_id}", response_model=LearningPlanView)
+    def agent_learning_plan(
+        plan_id: str,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> LearningPlanView:
+        plan = request.app.state.store.get_learning_plan(user["id"], plan_id)
+        if not plan:
+            raise HTTPException(status_code=404, detail="学习计划不存在")
+        return LearningPlanView(**plan)
+
+    @app.post("/api/agent/plans/{plan_id}/confirm", response_model=LearningPlanView)
+    def confirm_agent_learning_plan(
+        plan_id: str,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> LearningPlanView:
+        try:
+            plan = request.app.state.store.confirm_learning_plan(user["id"], plan_id)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return LearningPlanView(**plan)
+
+    @app.post(
+        "/api/agent/plans/{plan_id}/items/{item_id}/complete",
+        response_model=LearningPlanView,
+    )
+    def complete_agent_learning_plan_item(
+        plan_id: str,
+        item_id: str,
+        request: Request,
+        user: dict[str, Any] = Depends(current_user),
+    ) -> LearningPlanView:
+        try:
+            plan = request.app.state.store.complete_learning_plan_item(
+                user["id"], plan_id, item_id
+            )
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return LearningPlanView(**plan)
 
     @app.get("/api/agent/conversations", response_model=list[AgentConversationView])
     def agent_conversations(
@@ -648,15 +1089,95 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
     @app.post("/api/interview/start", response_model=SessionView)
     def start_interview(payload: StartInterviewRequest, request: Request, user: dict[str, Any] = Depends(current_user)) -> SessionView:
         engine = engine_for(request, user)
+        plan_id = (payload.plan_id or "").strip() or None
+        plan_item_id = (payload.plan_item_id or "").strip() or None
+        question_card_id = (payload.question_card_id or "").strip() or None
+        graph_question_id = (payload.graph_question_id or "").strip() or None
+        graph_entry_source = (payload.graph_entry_source or "").strip() or None
+        graph_parent_question_id = (payload.graph_parent_question_id or "").strip() or None
+        if bool(plan_id) != bool(plan_item_id):
+            raise HTTPException(status_code=400, detail="学习计划关联需要同时提供 plan_id 和 plan_item_id")
+        if (plan_id or plan_item_id) and payload.mode != "topic_drill":
+            raise HTTPException(status_code=400, detail="学习计划项只能关联专项训练")
+        if question_card_id and payload.mode != "topic_drill":
+            raise HTTPException(status_code=400, detail="项目追问卡只能关联专项训练")
+        if graph_question_id and payload.mode != "topic_drill":
+            raise HTTPException(status_code=400, detail="图谱问题只能关联专项训练")
+        if graph_question_id and not payload.topic:
+            raise HTTPException(status_code=400, detail="图谱问题需要同时提供训练主题")
+        if graph_parent_question_id and not graph_question_id:
+            raise HTTPException(status_code=400, detail="图谱父节点需要同时提供目标问题")
+        if graph_entry_source and not graph_question_id:
+            raise HTTPException(status_code=400, detail="图谱来源字段需要同时提供目标问题")
+        graph_entry: dict[str, str] | None = None
+        if graph_question_id and payload.topic:
+            try:
+                graph_entry = resolve_graph_question_entry(
+                    user["id"],
+                    payload.topic,
+                    graph_question_id,
+                    str(request.app.state.data_dir),
+                    request.app.state.store,
+                    entry_source=graph_entry_source,
+                    parent_question_id=graph_parent_question_id,
+                )
+            except KnowledgeError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            if not graph_entry:
+                raise HTTPException(status_code=400, detail="图谱问题不存在、父节点不存在或不属于当前训练主题")
+        linked_plan_item: dict[str, Any] | None = None
+        if plan_id and plan_item_id:
+            try:
+                linked_plan_item = request.app.state.store.get_learning_plan_item_for_training(
+                    user["id"], plan_id, plan_item_id
+                )
+            except LookupError as exc:
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if linked_plan_item and graph_entry:
+            linked_item = linked_plan_item["item"]
+            if str(linked_item.get("graph_question_id", "")) != graph_entry["id"]:
+                raise HTTPException(status_code=400, detail="学习计划项与图谱问题来源不一致")
+            expected_source = str(linked_item.get("graph_entry_source", "") or "question_node")
+            expected_parent_id = str(linked_item.get("graph_parent_question_id", "") or "")
+            if expected_source != graph_entry["entry_source"] or expected_parent_id != graph_entry["parent_question_id"]:
+                raise HTTPException(status_code=400, detail="学习计划项与图谱候选来源不一致")
         resume_text = payload.resume_text.strip()
         if not resume_text:
             try:
                 resume_text, _ = get_resume_text(user["id"], request.app.state.data_dir)
-            except ResumeError as exc:
-                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            except ResumeError:
+                resume_text = ""
+            if not resume_text:
+                resume_text = request.app.state.structured_resume.get_context(user["id"])
         topic = None
         knowledge_context = ""
         question_bank: list[str] = []
+        focus_parts: list[str] = []
+        explicit_focus = (payload.focus or "").strip()
+        if explicit_focus:
+            focus_parts.append(explicit_focus)
+        question_card: dict[str, Any] | None = None
+        graph_question: str | None = graph_entry["question"] if graph_entry else None
+        if question_card_id:
+            question_card = request.app.state.structured_resume.get_question_card(
+                user["id"], question_card_id
+            )
+            if not question_card:
+                raise HTTPException(status_code=404, detail="项目追问卡不存在或已不属于当前简历版本")
+            card_focus = str(question_card.get("training_focus", question_card["question"])).strip()
+            if card_focus:
+                focus_parts.append(f"项目追问焦点：{card_focus}")
+        if linked_plan_item:
+            plan_focus = str(linked_plan_item["item"].get("point", "")).strip()
+            if plan_focus:
+                focus_parts.append(f"学习计划焦点：{plan_focus}")
+        if graph_question:
+            focus_parts.append(f"图谱指定问题：{graph_question}")
+        requested_focus = "；".join(focus_parts)[:200]
         if payload.mode == "topic_drill":
             if not payload.topic:
                 raise HTTPException(status_code=400, detail="专项训练需要选择训练领域")
@@ -681,10 +1202,16 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
                     topic_profile=topic_profile,
                     due_reviews=due_reviews,
                     recent_sessions=recent_topic_context(request, user, topic),
+                    requested_focus=requested_focus,
                 )
             except ProviderError as exc:
                 raise HTTPException(status_code=502, detail=f"专项动态出题失败：{exc}") from exc
             question_bank = drill_plan["questions"]
+            if graph_question:
+                question_bank = [
+                    graph_question,
+                    *[question for question in question_bank if question != graph_question],
+                ][:8]
         try:
             state = engine.start(
                 payload.target_role,
@@ -696,6 +1223,16 @@ def create_app(db_path: str | Path | None = None, jwt_secret: str | None = None)
             )
         except ProviderError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
+        state["learning_plan_id"] = plan_id
+        state["learning_plan_item_id"] = plan_item_id
+        state["question_card_id"] = question_card["id"] if question_card else None
+        state["question_card_project"] = question_card["project_name"] if question_card else ""
+        state["question_card_resume_version"] = question_card["resume_version"] if question_card else None
+        state["graph_question_id"] = graph_question_id
+        state["graph_question"] = graph_question or ""
+        state["graph_entry_source"] = graph_entry["entry_source"] if graph_entry else ""
+        state["graph_parent_question_id"] = graph_entry["parent_question_id"] if graph_entry else None
+        state["graph_parent_question"] = graph_entry["parent_question"] if graph_entry else ""
         session_id = request.app.state.store.create_session(user["id"], state)
         session = request.app.state.store.get_session(user["id"], session_id)
         assert session is not None

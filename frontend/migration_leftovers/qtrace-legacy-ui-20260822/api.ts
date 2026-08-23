@@ -7,6 +7,10 @@ export type Settings = {
   llm_model: string;
   llm_key_configured: boolean;
   embedding_mode: string;
+  embedding_api_base: string;
+  embedding_model: string;
+  embedding_model_path: string;
+  embedding_key_configured: boolean;
   llm_configured: boolean;
   embedding_configured: boolean;
   needs_onboarding: boolean;
@@ -44,6 +48,16 @@ export type Session = {
   review: Review | null;
   mode?: "resume" | "topic_drill" | string;
   topic?: string | null;
+  learning_plan_id?: string | null;
+  learning_plan_item_id?: string | null;
+  question_card_id?: string | null;
+  question_card_project?: string;
+  question_card_resume_version?: number | null;
+  graph_question_id?: string | null;
+  graph_question?: string;
+  graph_entry_source?: string;
+  graph_parent_question_id?: string | null;
+  graph_parent_question?: string;
   company?: string;
   position?: string;
   recording_mode?: "dual" | "solo" | string;
@@ -68,8 +82,119 @@ export type ResumeStatus = {
   text_chars: number;
 };
 
+export type ResumeProject = {
+  name: string;
+  role: string;
+  description: string;
+  technologies: string[];
+  highlights: string[];
+};
+
+export type StructuredResume = {
+  name: string;
+  headline: string;
+  email: string;
+  location: string;
+  summary: string;
+  skills: string[];
+  projects: ResumeProject[];
+};
+
+export type ResumeEditor = {
+  id: string;
+  version: number;
+  profile: StructuredResume;
+  context_text: string;
+  exists: boolean;
+  unchanged: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ResumeEditorVersion = {
+  id: string;
+  version: number;
+  context_chars: number;
+  project_count: number;
+  created_at: string;
+};
+
+export type ResumeEditorVersionDetail = {
+  id: string;
+  version: number;
+  profile: StructuredResume;
+  context_text: string;
+  created_at: string;
+};
+
+export type ResumeQuestionCard = {
+  id: string;
+  resume_version: number;
+  project_name: string;
+  category: string;
+  question: string;
+  training_focus: string;
+  purpose: string;
+  field_refs: string[];
+  document_query: string;
+  evidence: PersonalDocumentSearchResult[];
+};
+
 export type Topic = { name: string; icon: string; dir: string };
 export type KnowledgeFile = { filename: string; content: string };
+export type TopicGraphNode = {
+  id: string;
+  type: "topic" | "question" | "review" | string;
+  label: string;
+  status: string;
+  question: string;
+  focus_area: string;
+  topic: string;
+  related_question_ids: string[];
+};
+export type TopicGraphLink = {
+  source: string;
+  target: string;
+  relation: string;
+  weight: number;
+  started_count: number;
+  completed_count: number;
+};
+export type TopicGraph = {
+  topic: string;
+  topic_name: string;
+  mode: string;
+  nodes: TopicGraphNode[];
+  links: TopicGraphLink[];
+  summary: {
+    question_count: number;
+    due_review_count: number;
+    weak_point_count: number;
+    link_count: number;
+  };
+};
+export type TopicGraphFeedbackEdge = {
+  source: string;
+  target: string;
+  weight: number;
+  started_count: number;
+  completed_count: number;
+  completion_rate: number;
+  average_score: number | null;
+  score_delta: number | null;
+  repeat_rate: number;
+};
+export type TopicGraphFeedback = {
+  topic: string;
+  topic_name: string;
+  edges: TopicGraphFeedbackEdge[];
+  summary: {
+    candidate_edge_count: number;
+    observed_edge_count: number;
+    started_count: number;
+    completed_count: number;
+  };
+};
 export type TopicMastery = {
   topic: string;
   attempts: number;
@@ -105,8 +230,20 @@ export type JobPreview = {
   };
   prep_priorities: string[];
   question_blueprint: { category: string; focus_area: string; objective: string; question: string }[];
+  project_matches: JobProjectMatch[];
   jd_excerpt: string;
   detected_skills: string[];
+};
+
+export type JobProjectMatch = {
+  project_name: string;
+  focus_area: string;
+  matched_skills: string[];
+  evidence_fields: string[];
+  priority: string;
+  score: number;
+  question_card_id: string;
+  reason: string;
 };
 
 export type CopilotResult = {
@@ -171,6 +308,8 @@ export type AgentPlan = {
 export type AgentToolTrace = {
   name: string;
   status: "completed" | "failed" | string;
+  code?: string;
+  recovery?: string;
   reason: string;
   summary: string;
 };
@@ -181,6 +320,90 @@ export type AgentChatResponse = {
   message: AgentMessage;
   plan: AgentPlan;
   tool_trace: AgentToolTrace[];
+  created_plan: LearningPlan | null;
+};
+
+export type LearningPlanItem = {
+  id: string;
+  type: string;
+  topic: string;
+  point: string;
+  action: string;
+  reason: string;
+  duration_minutes: number;
+  priority: string;
+  scheduled_for: string;
+  status: string;
+  question_card_id?: string;
+  question_card_project?: string;
+  question_card_resume_version?: number | null;
+  graph_question_id?: string;
+  graph_question?: string;
+  graph_entry_source?: string;
+  graph_parent_question_id?: string;
+  graph_parent_question?: string;
+  related_questions?: { id: string; topic: string; question: string; focus_area: string; weight: number; started_count: number; completed_count: number; completion_rate: number }[];
+};
+
+export type LearningPlan = {
+  id: string;
+  conversation_id: string | null;
+  source_message: string;
+  title: string;
+  summary: string;
+  items: LearningPlanItem[];
+  source: Record<string, unknown>;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PersonalDocument = {
+  id: string;
+  title: string;
+  source_type: "text" | "markdown" | "pdf" | string;
+  version: number;
+  content_chars: number;
+  chunk_count: number;
+  embedding_mode: string;
+  created_at: string;
+  updated_at: string;
+  deduplicated: boolean;
+  unchanged?: boolean;
+};
+
+export type PersonalDocumentVersion = {
+  id: string;
+  document_id: string;
+  version: number;
+  title: string;
+  source_type: "text" | "markdown" | "pdf" | string;
+  content_chars: number;
+  chunk_count: number;
+  embedding_mode: string;
+  created_at: string;
+};
+
+export type PersonalDocumentVersionDetail = PersonalDocumentVersion & {
+  content: string;
+};
+
+export type PersonalDocumentSearchResult = {
+  document_id: string;
+  title: string;
+  source_type: string;
+  version: number;
+  chunk_index: number;
+  content: string;
+  score: number;
+  embedding_mode: string;
+  citation: string;
+};
+
+export type PersonalDocumentReindex = {
+  embedding_mode: string;
+  document_count: number;
+  chunk_count: number;
 };
 
 export type AgentConversation = {
@@ -212,7 +435,7 @@ export function getAgentConversation(conversationId: string, token: string) {
 }
 
 export function chatWithAgent(
-  payload: { message: string; conversation_id?: string | null },
+  payload: { message: string; conversation_id?: string | null; question_card_id?: string | null; topic?: string | null; graph_question_id?: string | null; graph_entry_source?: string | null; graph_parent_question_id?: string | null },
   token: string,
 ) {
   return apiFetch<AgentChatResponse>("/agent/chat", {
@@ -221,14 +444,122 @@ export function chatWithAgent(
   }, token);
 }
 
+export function getAgentPlans(token: string) {
+  return apiFetch<LearningPlan[]>("/agent/plans", {}, token);
+}
+
+export function getAgentPlan(planId: string, token: string) {
+  return apiFetch<LearningPlan>(`/agent/plans/${encodeURIComponent(planId)}`, {}, token);
+}
+
+export function confirmAgentPlan(planId: string, token: string) {
+  return apiFetch<LearningPlan>(`/agent/plans/${encodeURIComponent(planId)}/confirm`, {
+    method: "POST",
+  }, token);
+}
+
+export function completeAgentPlanItem(planId: string, itemId: string, token: string) {
+  return apiFetch<LearningPlan>(
+    `/agent/plans/${encodeURIComponent(planId)}/items/${encodeURIComponent(itemId)}/complete`,
+    { method: "POST" },
+    token,
+  );
+}
+
+export function getPersonalDocuments(token: string) {
+  return apiFetch<PersonalDocument[]>("/agent/documents", {}, token);
+}
+
+export function createPersonalDocument(
+  payload: { title: string; content: string; source_type?: "text" | "markdown" | "pdf" },
+  token: string,
+) {
+  return apiFetch<PersonalDocument>("/agent/documents", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export function updatePersonalDocument(
+  documentId: string,
+  payload: { title: string; content: string; source_type?: "text" | "markdown" | "pdf" },
+  token: string,
+) {
+  return apiFetch<PersonalDocument>(`/agent/documents/${encodeURIComponent(documentId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export function getPersonalDocumentVersions(documentId: string, token: string) {
+  return apiFetch<PersonalDocumentVersion[]>(
+    `/agent/documents/${encodeURIComponent(documentId)}/versions`,
+    {},
+    token,
+  );
+}
+
+export function getPersonalDocumentVersion(documentId: string, version: number, token: string) {
+  return apiFetch<PersonalDocumentVersionDetail>(
+    `/agent/documents/${encodeURIComponent(documentId)}/versions/${version}`,
+    {},
+    token,
+  );
+}
+
+export function uploadPersonalDocument(file: File, token: string) {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<PersonalDocument>("/agent/documents/upload", { method: "POST", body: form }, token);
+}
+
+export function searchPersonalDocuments(query: string, token: string, limit = 5) {
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  return apiFetch<PersonalDocumentSearchResult[]>(`/agent/documents/search?${params.toString()}`, {}, token);
+}
+
+export function updateEmbeddingSettings(
+  payload: { mode: "demo" | "local-model" | "openai-compatible"; api_base?: string; model?: string; model_path?: string; api_key?: string },
+  token: string,
+) {
+  return apiFetch<Settings>("/settings/embedding", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export function reindexPersonalDocuments(token: string) {
+  return apiFetch<PersonalDocumentReindex>("/agent/documents/reindex", { method: "POST" }, token);
+}
+
 const API_BASE = "/api";
+export const AUTH_EXPIRED_EVENT = "qtrace:auth-expired";
+
+function formatApiErrorDetail(detail: unknown): string {
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => {
+      if (!item || typeof item !== "object") return "";
+      const message = "msg" in item && typeof item.msg === "string" ? item.msg : "";
+      const location = "loc" in item && Array.isArray(item.loc)
+        ? item.loc.filter((part: unknown): part is string | number => typeof part === "string" || typeof part === "number").join(".")
+        : "";
+      return message ? (location ? location + ": " + message : message) : "";
+    }).filter(Boolean);
+    if (messages.length) return "请求参数错误：" + messages.join("；");
+  }
+  if (detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string" && detail.message.trim()) {
+    return detail.message;
+  }
+  return "请求失败";
+}
 
 export class ApiError extends Error {
   status: number;
   detail: unknown;
 
   constructor(status: number, detail: unknown) {
-    super(typeof detail === "string" ? detail : "请求失败");
+    super(formatApiErrorDetail(detail));
     this.status = status;
     this.detail = detail;
   }
@@ -241,7 +572,12 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}, token
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const body = await response.json().catch(() => null);
-  if (!response.ok) throw new ApiError(response.status, body?.detail ?? body);
+  if (!response.ok) {
+    if (response.status === 401 && token && typeof window !== "undefined") {
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    }
+    throw new ApiError(response.status, body?.detail ?? body);
+  }
   return body as T;
 }
 
@@ -259,6 +595,29 @@ export function getResumeStatus(token: string) {
   return apiFetch<ResumeStatus>("/resume/status", {}, token);
 }
 
+export function getResumeEditor(token: string) {
+  return apiFetch<ResumeEditor>("/resume/editor", {}, token);
+}
+
+export function saveResumeEditor(profile: StructuredResume, token: string) {
+  return apiFetch<ResumeEditor>("/resume/editor", {
+    method: "PUT",
+    body: JSON.stringify(profile),
+  }, token);
+}
+
+export function getResumeEditorVersions(token: string) {
+  return apiFetch<ResumeEditorVersion[]>("/resume/editor/versions", {}, token);
+}
+
+export function getResumeQuestionCards(token: string) {
+  return apiFetch<ResumeQuestionCard[]>("/resume/editor/question-cards", {}, token);
+}
+
+export function getResumeEditorVersion(version: number, token: string) {
+  return apiFetch<ResumeEditorVersionDetail>(`/resume/editor/versions/${version}`, {}, token);
+}
+
 export function uploadResume(file: File, token: string) {
   const form = new FormData();
   form.append("file", file);
@@ -271,6 +630,14 @@ export function deleteResume(token: string) {
 
 export function getTopics(token: string) {
   return apiFetch<Record<string, Topic>>("/topics", {}, token);
+}
+
+export function getTopicGraph(topic: string, token: string) {
+  return apiFetch<TopicGraph>(`/graph/${encodeURIComponent(topic)}`, {}, token);
+}
+
+export function getTopicGraphFeedback(topic: string, token: string) {
+  return apiFetch<TopicGraphFeedback>(`/graph/${encodeURIComponent(topic)}/feedback`, {}, token);
 }
 
 export function createTopic(payload: { key?: string; name: string; icon?: string }, token: string) {

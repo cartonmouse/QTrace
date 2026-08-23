@@ -459,6 +459,56 @@ def test_jd_preview_and_targeted_training(tmp_path):
     assert history.json()[0]["company"] == "QTrace Labs"
 
 
+def test_jd_preview_maps_structured_projects_to_question_cards(tmp_path):
+    client = TestClient(create_app(tmp_path / "rebuild.sqlite3", "test-secret"))
+    registered = client.post(
+        "/api/auth/register",
+        json={"email": "jd-project-map@example.test", "password": "password-123", "name": "JD Project Mapper"},
+    ).json()
+    headers = {"Authorization": f"Bearer {registered['access_token']}"}
+    assert client.put("/api/settings", headers=headers, json={"use_stub_provider": True}).status_code == 200
+    resume = {
+        "name": "Project Mapper",
+        "headline": "AI 应用开发工程师",
+        "summary": "负责 AI Agent 应用工程化。",
+        "skills": ["Python", "Agent"],
+        "projects": [
+            {
+                "name": "问迹 QTrace",
+                "role": "负责 Agent 编排和后端实现",
+                "description": "把面试训练、画像和复习队列连接成可追踪的成长系统。",
+                "technologies": ["Python", "FastAPI", "Agent"],
+                "highlights": ["通过结构化复盘和测试验证训练链路"],
+            }
+        ],
+    }
+    assert client.put("/api/resume/editor", headers=headers, json=resume).status_code == 200
+    jd_text = "招聘 AI 应用开发工程师，负责 Python、FastAPI 和 Agent 系统建设，要求具备工程验证和项目落地能力。"
+
+    mapped = client.post(
+        "/api/job-prep/preview",
+        headers=headers,
+        json={"position": "AI 应用开发工程师", "jd_text": jd_text, "use_resume": True},
+    )
+    assert mapped.status_code == 200
+    matches = mapped.json()["preview"]["project_matches"]
+    assert matches
+    qtrace_match = next(item for item in matches if item["project_name"] == "问迹 QTrace")
+    assert {"Python", "FastAPI", "Agent"}.issubset(qtrace_match["matched_skills"])
+    assert "technologies" in qtrace_match["evidence_fields"]
+    assert qtrace_match["priority"] == "high"
+    assert qtrace_match["score"] > 0
+    assert qtrace_match["question_card_id"] == "project-1-question-3"
+
+    without_resume = client.post(
+        "/api/job-prep/preview",
+        headers=headers,
+        json={"position": "AI 应用开发工程师", "jd_text": jd_text, "use_resume": False},
+    )
+    assert without_resume.status_code == 200
+    assert without_resume.json()["preview"]["project_matches"] == []
+
+
 def test_recording_transcript_analysis_is_persisted_and_updates_profile(tmp_path):
     client = TestClient(create_app(tmp_path / "rebuild.sqlite3", "test-secret"))
     registered = client.post(

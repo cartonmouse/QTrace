@@ -1,0 +1,572 @@
+:root {
+  --qtrace-canvas: #f3f1eb;
+  --qtrace-panel: #fcfbf7;
+  --qtrace-panel-raised: #ffffff;
+  --qtrace-ink: #17201f;
+  --qtrace-muted: #6b7470;
+  --qtrace-line: rgba(23, 32, 31, 0.14);
+  --qtrace-line-strong: rgba(23, 32, 31, 0.24);
+  --qtrace-signal: #b84e3b;
+  --qtrace-signal-soft: rgba(184, 78, 59, 0.11);
+  --qtrace-sidebar-width: 274px;
+}
+
+.dark {
+  --qtrace-canvas: #101412;
+  --qtrace-panel: #151b18;
+  --qtrace-panel-raised: #1b231f;
+  --qtrace-ink: #eef1eb;
+  --qtrace-muted: #9da9a1;
+  --qtrace-line: rgba(238, 241, 235, 0.15);
+  --qtrace-line-strong: rgba(238, 241, 235, 0.28);
+  --qtrace-signal: #d77963;
+  --qtrace-signal-soft: rgba(215, 121, 99, 0.14);
+}
+
+.qtrace-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: var(--qtrace-sidebar-width) minmax(0, 1fr);
+  background: var(--qtrace-canvas);
+  color: var(--qtrace-ink);
+  transition: grid-template-columns 220ms ease, background-color 220ms ease;
+}
+
+.qtrace-shell.is-compact {
+  --qtrace-sidebar-width: 92px;
+}
+
+.qtrace-skip-link {
+  position: fixed;
+  left: 14px;
+  top: -80px;
+  z-index: 100;
+  padding: 8px 12px;
+  background: var(--qtrace-signal);
+  color: #fff;
+  font-size: 12px;
+  transition: top 160ms ease;
+}
+
+.qtrace-skip-link:focus {
+  top: 14px;
+}
+
+.qtrace-shell-sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--qtrace-line-strong);
+  background: var(--qtrace-panel);
+}
+
+.qtrace-brand-lockup {
+  display: flex;
+  align-items: center;
+  min-height: 84px;
+  gap: 11px;
+  padding: 18px 20px;
+}
+
+.qtrace-brand-button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--qtrace-line-strong);
+  background: var(--qtrace-panel-raised);
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.qtrace-brand-button:hover {
+  border-color: var(--qtrace-signal);
+  transform: translateY(-1px);
+}
+
+.qtrace-brand-logo {
+  width: 28px;
+  height: 28px;
+}
+
+.qtrace-brand-copy,
+.qtrace-nav-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.qtrace-brand-name {
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.qtrace-brand-meta,
+.qtrace-command-code,
+.qtrace-sidebar-kicker,
+.qtrace-nav-group-label,
+.qtrace-command-status {
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.qtrace-brand-meta {
+  margin-top: 6px;
+  color: var(--qtrace-muted);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.qtrace-mobile-close,
+.qtrace-mobile-menu {
+  display: none;
+}
+
+.qtrace-sidebar-rule {
+  height: 1px;
+  margin: 0 20px;
+  background: var(--qtrace-line);
+}
+
+.qtrace-sidebar-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 20px 12px;
+  color: var(--qtrace-muted);
+  font-size: 9px;
+}
+
+.qtrace-status-dot,
+.qtrace-live-mark {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--qtrace-signal);
+  box-shadow: 0 0 0 3px var(--qtrace-signal-soft);
+}
+
+.qtrace-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 12px 16px;
+  scrollbar-width: thin;
+}
+
+.qtrace-nav-group {
+  padding: 12px 0 6px;
+}
+
+.qtrace-nav-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9px 7px;
+  color: var(--qtrace-muted);
+  font-size: 9px;
+}
+
+.qtrace-nav-items {
+  display: grid;
+  gap: 3px;
+}
+
+.qtrace-nav-link {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px 18px minmax(0, 1fr) 14px;
+  align-items: center;
+  min-height: 50px;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  color: var(--qtrace-muted);
+  text-decoration: none;
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.qtrace-nav-link:hover {
+  border-color: var(--qtrace-line);
+  background: var(--qtrace-panel-raised);
+  color: var(--qtrace-ink);
+  transform: translateX(2px);
+}
+
+.qtrace-nav-link.is-active {
+  border-color: var(--qtrace-signal);
+  background: var(--qtrace-signal-soft);
+  color: var(--qtrace-ink);
+}
+
+.qtrace-nav-link.is-active::before {
+  position: absolute;
+  left: -1px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  background: var(--qtrace-signal);
+  content: "";
+}
+
+.qtrace-nav-index {
+  color: var(--qtrace-muted);
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 9px;
+}
+
+.qtrace-nav-icon {
+  color: currentColor;
+}
+
+.qtrace-nav-title {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qtrace-nav-note {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--qtrace-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qtrace-nav-arrow {
+  opacity: 0;
+  color: var(--qtrace-signal);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.qtrace-nav-link:hover .qtrace-nav-arrow,
+.qtrace-nav-link.is-active .qtrace-nav-arrow {
+  opacity: 1;
+}
+
+.qtrace-nav-link:hover .qtrace-nav-arrow {
+  transform: translate(1px, -1px);
+}
+
+.qtrace-sidebar-footer {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--qtrace-line);
+}
+
+.qtrace-sidebar-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.qtrace-sidebar-action,
+.qtrace-compact-toggle,
+.qtrace-logout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--qtrace-muted);
+  font-size: 11px;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.qtrace-sidebar-action {
+  justify-content: center;
+  min-height: 30px;
+  border: 1px solid var(--qtrace-line);
+  background: transparent;
+}
+
+.qtrace-sidebar-action:hover,
+.qtrace-compact-toggle:hover,
+.qtrace-logout-button:hover {
+  color: var(--qtrace-ink);
+  background: var(--qtrace-signal-soft);
+}
+
+.qtrace-account-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+  padding: 8px 0 2px;
+}
+
+.qtrace-account-mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--qtrace-line-strong);
+  color: var(--qtrace-signal);
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.qtrace-account-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--qtrace-ink);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qtrace-logout-button {
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.qtrace-compact-toggle {
+  justify-content: center;
+  min-height: 30px;
+  border: 1px solid transparent;
+}
+
+.qtrace-compact-toggle span {
+  font-size: 10px;
+}
+
+.qtrace-shell-main {
+  position: relative;
+  min-width: 0;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--qtrace-canvas);
+}
+
+.qtrace-shell-main::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: linear-gradient(var(--qtrace-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--qtrace-line) 1px, transparent 1px);
+  background-position: 0 0;
+  background-size: 72px 72px;
+  content: "";
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.qtrace-command-bar,
+.qtrace-shell-content {
+  position: relative;
+  z-index: 1;
+}
+
+.qtrace-command-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 66px;
+  gap: 20px;
+  padding: 0 32px;
+  border-bottom: 1px solid var(--qtrace-line-strong);
+  background: color-mix(in srgb, var(--qtrace-panel) 92%, transparent);
+}
+
+.qtrace-command-path,
+.qtrace-command-status {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+  color: var(--qtrace-muted);
+  font-size: 10px;
+}
+
+.qtrace-command-path strong {
+  overflow: hidden;
+  color: var(--qtrace-ink);
+  font-family: "DM Sans", "PingFang SC", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qtrace-command-divider {
+  color: var(--qtrace-signal);
+}
+
+.qtrace-command-sequence {
+  padding-left: 8px;
+  border-left: 1px solid var(--qtrace-line);
+  color: var(--qtrace-signal);
+}
+
+.qtrace-mobile-scrim {
+  display: none;
+}
+
+.qtrace-shell-content {
+  min-height: calc(100dvh - 66px);
+}
+
+.is-compact .qtrace-brand-lockup {
+  justify-content: center;
+  padding-inline: 12px;
+}
+
+.is-compact .qtrace-brand-copy,
+.is-compact .qtrace-sidebar-kicker,
+.is-compact .qtrace-nav-group-label,
+.is-compact .qtrace-nav-copy,
+.is-compact .qtrace-nav-arrow,
+.is-compact .qtrace-sidebar-action span,
+.is-compact .qtrace-account-name,
+.is-compact .qtrace-compact-toggle span {
+  display: none;
+}
+
+.is-compact .qtrace-brand-button {
+  width: 40px;
+}
+
+.is-compact .qtrace-nav {
+  padding-inline: 10px;
+}
+
+.is-compact .qtrace-nav-link {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  padding-inline: 0;
+}
+
+.is-compact .qtrace-nav-index {
+  display: none;
+}
+
+.is-compact .qtrace-sidebar-actions {
+  grid-template-columns: 1fr;
+}
+
+.is-compact .qtrace-sidebar-action,
+.is-compact .qtrace-compact-toggle {
+  justify-content: center;
+}
+
+.is-compact .qtrace-account-row {
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .qtrace-shell {
+    display: block;
+  }
+
+  .qtrace-shell-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(88vw, 320px);
+    transform: translateX(-102%);
+    transition: transform 220ms ease;
+    box-shadow: 18px 0 40px rgba(0, 0, 0, 0.16);
+  }
+
+  .qtrace-shell-sidebar.is-mobile-open {
+    transform: translateX(0);
+  }
+
+  .qtrace-shell-sidebar .qtrace-brand-copy,
+  .qtrace-shell-sidebar .qtrace-sidebar-kicker,
+  .qtrace-shell-sidebar .qtrace-nav-group-label,
+  .qtrace-shell-sidebar .qtrace-nav-copy,
+  .qtrace-shell-sidebar .qtrace-nav-arrow,
+  .qtrace-shell-sidebar .qtrace-sidebar-action span,
+  .qtrace-shell-sidebar .qtrace-account-name,
+  .qtrace-shell-sidebar .qtrace-compact-toggle span {
+    display: flex;
+  }
+
+  .qtrace-shell-sidebar .qtrace-brand-lockup {
+    justify-content: flex-start;
+    padding-inline: 20px;
+  }
+
+  .qtrace-shell-sidebar .qtrace-mobile-close,
+  .qtrace-mobile-menu {
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .qtrace-mobile-close {
+    width: 32px;
+    height: 32px;
+    margin-left: auto;
+    color: var(--qtrace-muted);
+  }
+
+  .qtrace-mobile-close:hover,
+  .qtrace-mobile-menu:hover {
+    color: var(--qtrace-ink);
+    background: var(--qtrace-signal-soft);
+  }
+
+  .qtrace-mobile-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: block;
+    background: rgba(10, 14, 12, 0.42);
+  }
+
+  .qtrace-command-bar {
+    min-height: 60px;
+    padding: 0 18px;
+  }
+
+  .qtrace-mobile-menu {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    color: var(--qtrace-muted);
+  }
+
+  .qtrace-command-path {
+    margin-right: auto;
+  }
+
+  .qtrace-command-status {
+    display: none;
+  }
+
+  .qtrace-shell-content {
+    min-height: calc(100dvh - 60px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qtrace-shell,
+  .qtrace-nav-link,
+  .qtrace-brand-button,
+  .qtrace-shell-sidebar,
+  .qtrace-skip-link {
+    transition: none;
+  }
+}

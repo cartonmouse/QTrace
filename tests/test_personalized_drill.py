@@ -25,10 +25,13 @@ def test_stub_drill_prioritizes_due_points_and_profile_focus():
         },
         due_reviews=[{"point": "chunk 切分策略"}],
         recent_sessions=[{"average_score": 5.0}],
+        requested_focus="离线评估",
     )
 
     assert plan["source"] == "stub_profile_driven"
-    assert plan["questions"][0].startswith("复习任务：")
+    assert "学习计划焦点" in plan["questions"][0]
+    assert any(question.startswith("复习任务：") for question in plan["questions"])
+    assert "离线评估" in plan["items"][0]["focus"]
     assert any("召回评估" in question for question in plan["questions"])
     assert len(plan["questions"]) <= 8
 
@@ -61,11 +64,13 @@ def test_llm_drill_generator_validates_structured_json():
         topic_profile={"mastery_score": 7.5, "trend": "improving"},
         due_reviews=[{"point": "重排"}],
         recent_sessions=[],
+        requested_focus="评估工具选型",
     )
 
     assert plan["source"] == "llm_profile_driven"
     assert plan["items"][0]["difficulty"] == 4
     assert "due_reviews" in calls[0][1]
+    assert "评估工具选型" in calls[0][1]
 
 
 def test_drill_plan_rejects_empty_or_malformed_questions():
@@ -165,7 +170,12 @@ def test_topic_start_uses_llm_question_generator_before_interview(monkeypatch, t
     started = client.post(
         "/api/interview/start",
         headers=headers,
-        json={"mode": "topic_drill", "topic": "rag", "target_role": "AI 工程师"},
+        json={
+            "mode": "topic_drill",
+            "topic": "rag",
+            "focus": "离线评估数据集",
+            "target_role": "AI 工程师",
+        },
     )
     assert started.status_code == 200
     answered = client.post(
@@ -176,3 +186,4 @@ def test_topic_start_uses_llm_question_generator_before_interview(monkeypatch, t
     assert answered.status_code == 200
     assert "验证 RAG 的召回质量" in answered.json()["messages"][-1]["content"]
     assert calls and "profile" in calls[0][1] and "topic_profile" in calls[0][1]
+    assert "离线评估数据集" in calls[0][1]

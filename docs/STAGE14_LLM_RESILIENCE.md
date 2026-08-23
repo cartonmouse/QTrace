@@ -90,4 +90,4 @@ Agent / Interview / Recording Analyzer
 1. 视真实模型供应商行为增加 `Retry-After` 和限流提示；
 2. 增加前端错误状态和用户可理解的重试入口；
 3. 评估 Agent 写工具和用户确认机制；
-4. GitHub 仓库创建、提交和推送仍需用户单独确认。
+4. GitHub 初始版本已发布；后续版本的提交和推送仍需用户单独确认。

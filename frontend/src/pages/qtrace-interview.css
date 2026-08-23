@@ -1,0 +1,311 @@
+.qtrace-interview-page {
+  --qtrace-interview-ink: var(--qtrace-ink, #17201f);
+  --qtrace-interview-muted: var(--qtrace-muted, #6b7470);
+  --qtrace-interview-line: var(--qtrace-line, rgba(23, 32, 31, 0.14));
+  --qtrace-interview-strong-line: var(--qtrace-line-strong, rgba(23, 32, 31, 0.24));
+  --qtrace-interview-signal: var(--qtrace-signal, #b84e3b);
+  --qtrace-interview-signal-soft: var(--qtrace-signal-soft, rgba(184, 78, 59, 0.11));
+  width: 100%;
+  min-height: 100%;
+  padding: clamp(1.25rem, 3vw, 3rem) clamp(1rem, 4vw, 4.5rem) 4rem;
+  color: var(--qtrace-interview-ink);
+}
+
+.qtrace-interview-intro,
+.qtrace-interview-selector,
+.qtrace-interview-panel {
+  width: min(100%, 1180px);
+  margin-inline: auto;
+}
+
+.qtrace-interview-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(230px, 0.7fr);
+  gap: clamp(1.5rem, 7vw, 8rem);
+  align-items: end;
+  padding-bottom: clamp(2rem, 5vw, 4.5rem);
+  border-bottom: 1px solid var(--qtrace-interview-strong-line);
+}
+
+.qtrace-interview-index,
+.qtrace-interview-kicker,
+.qtrace-interview-readout-label,
+.qtrace-interview-selector-note,
+.qtrace-interview-tab-index,
+.qtrace-interview-tab-copy small,
+.qtrace-interview-readout dt {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.qtrace-interview-index {
+  color: var(--qtrace-interview-muted);
+}
+
+.qtrace-interview-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 2.2rem;
+  color: var(--qtrace-interview-signal);
+  font-weight: 700;
+}
+
+.qtrace-interview-signal,
+.qtrace-interview-readout::before {
+  display: inline-block;
+  width: 0.48rem;
+  height: 0.48rem;
+  background: var(--qtrace-interview-signal);
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px var(--qtrace-interview-signal-soft);
+}
+
+.qtrace-interview-heading h1 {
+  max-width: 10ch;
+  margin: 0.65rem 0 0;
+  font-family: Georgia, "Noto Serif SC", serif;
+  font-size: clamp(2.6rem, 7vw, 6.5rem);
+  font-weight: 700;
+  letter-spacing: -0.075em;
+  line-height: 0.98;
+}
+
+.qtrace-interview-heading p {
+  max-width: 36rem;
+  margin: 1.4rem 0 0;
+  color: var(--qtrace-interview-muted);
+  font-size: 0.98rem;
+  line-height: 1.8;
+}
+
+.qtrace-interview-readout {
+  position: relative;
+  padding: 1rem 0 0 1.2rem;
+  border-left: 1px solid var(--qtrace-interview-strong-line);
+}
+
+.qtrace-interview-readout::before {
+  position: absolute;
+  top: 0.15rem;
+  left: -0.25rem;
+  content: "";
+}
+
+.qtrace-interview-readout-label,
+.qtrace-interview-readout dt {
+  color: var(--qtrace-interview-muted);
+}
+
+.qtrace-interview-readout-value {
+  margin-top: 0.75rem;
+  font-size: clamp(1.25rem, 2vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.qtrace-interview-readout-rule {
+  height: 1px;
+  margin: 1.2rem 0;
+  background: var(--qtrace-interview-line);
+}
+
+.qtrace-interview-readout dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.qtrace-interview-readout dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.qtrace-interview-readout dd {
+  margin: 0;
+  color: var(--qtrace-interview-ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.qtrace-interview-selector {
+  padding: clamp(1.5rem, 4vw, 3rem) 0 0;
+}
+
+.qtrace-interview-selector-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+}
+
+.qtrace-interview-selector h2 {
+  margin: 0.55rem 0 0;
+  font-size: clamp(1.4rem, 3vw, 2.25rem);
+  letter-spacing: -0.05em;
+}
+
+.qtrace-interview-selector-note {
+  color: var(--qtrace-interview-muted);
+  text-align: right;
+}
+
+.qtrace-interview-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.35rem;
+}
+
+.qtrace-interview-tab {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 0.9rem;
+  align-items: center;
+  min-height: 6.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--qtrace-interview-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--qtrace-interview-muted);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.qtrace-interview-tab:hover,
+.qtrace-interview-tab:focus-visible,
+.qtrace-interview-tab.is-active {
+  border-color: var(--qtrace-interview-signal);
+  background: var(--qtrace-interview-signal-soft);
+  color: var(--qtrace-interview-ink);
+}
+
+.qtrace-interview-tab:focus-visible {
+  outline: 2px solid var(--qtrace-interview-signal);
+  outline-offset: 3px;
+}
+
+.qtrace-interview-tab-index {
+  color: var(--qtrace-interview-signal);
+}
+
+.qtrace-interview-tab-icon {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid currentColor;
+  color: var(--qtrace-interview-signal);
+}
+
+.qtrace-interview-tab-copy {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.qtrace-interview-tab-copy strong {
+  font-size: 1rem;
+}
+
+.qtrace-interview-tab-copy small {
+  color: var(--qtrace-interview-muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.qtrace-interview-tab-arrow {
+  color: var(--qtrace-interview-signal);
+  transition: transform 160ms ease;
+}
+
+.qtrace-interview-tab:hover .qtrace-interview-tab-arrow,
+.qtrace-interview-tab.is-active .qtrace-interview-tab-arrow {
+  transform: translateX(0.2rem);
+}
+
+.qtrace-interview-route-note {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--qtrace-interview-line);
+  color: var(--qtrace-interview-muted);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.qtrace-interview-route-copy {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.qtrace-interview-route-copy svg {
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+  color: var(--qtrace-interview-signal);
+}
+
+.qtrace-interview-route-copy strong {
+  color: var(--qtrace-interview-ink);
+}
+
+.qtrace-interview-secondary-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.35rem;
+  align-items: center;
+  color: var(--qtrace-interview-ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.qtrace-interview-secondary-link:hover {
+  color: var(--qtrace-interview-signal);
+}
+
+.qtrace-interview-panel {
+  padding-top: 1.25rem;
+}
+
+@media (max-width: 760px) {
+  .qtrace-interview-intro {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .qtrace-interview-readout {
+    max-width: 26rem;
+  }
+
+  .qtrace-interview-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .qtrace-interview-route-note,
+  .qtrace-interview-selector-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .qtrace-interview-selector-note {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qtrace-interview-tab,
+  .qtrace-interview-tab-arrow {
+    transition: none;
+  }
+}
