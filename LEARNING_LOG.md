@@ -1059,3 +1059,11 @@
 - Docker 生产镜像构建和 Compose 短时运行通过：8080 首页、同源健康检查、合成注册均成功；公开模式下私有地址的 LLM 探测被拒绝、配置保存返回 400，验证后仅停止容器并保留数据卷。
 - 最终收口门禁通过：全量合成回归 `148 passed`，BYOK/public-demo/final-delivery 预检和 `git diff --check` 通过；仅保留正式目录 `.pytest_cache` 的 Windows 写权限 warning，不删除权限受限产物。
 - 这只是应用层第一道门。DNS 检查存在时间窗口，真正公网发布仍需云防火墙或 egress proxy 防止 DNS rebinding，并补 HTTPS、限流、调用预算、日志治理和监控；本阶段没有真实外部请求、真实资料、真实 API Key、部署或 GitHub 推送。
+
+## 阶段 95：腾讯云 VPS 浏览器 Demo 部署准备
+
+- 用户新增了独立 QTrace 腾讯云 VPS，目标从“可部署包”推进到“其他人可以用浏览器访问”。我把 Qidian 旧 VPS 明确排除在范围外，避免两个项目的容器、端口和安全组互相干扰。
+- 新 VPS 的 Docker Hub 请求超时，但腾讯容器镜像、腾讯 PyPI 和 npmmirror 可达。部署 Dockerfile 现在通过 Compose build args 接收 `PIP_INDEX_URL`/`NPM_REGISTRY`；依赖镜像切换是部署配置，不改业务逻辑。
+- 公网构建发现 `@fontsource/noto-serif-sc@5.3.0` 在 npmmirror 返回 404。移除该非业务必需依赖并改用系统衬线字体回退；Noto Sans 仍按原方式自托管。前端 typecheck/build、Compose config 通过。
+- 云端验收必须继续区分：镜像构建成功 ≠ 容器健康 ≠ 浏览器可访问 ≠ 公网已上线。下一步只在新 VPS 上完成 Compose healthy、腾讯云安全组放行演示端口、获取真实公网 IPv4，并用合成账号从外部浏览器验收。
+- 本阶段没有读取或输出 API Key、真实简历、个人文档或浏览器密码；远端环境 secret 不回显、不提交，公网 Demo 继续采用 session BYOK 和无 Key Stub 降级。

@@ -17,6 +17,7 @@
 - `web` 构建前端生产产物，并用同源 `/api` 代理到 FastAPI，避免把后端地址写进浏览器。
 - 命名卷 `qtrace_demo_data` 保存 Demo 运行数据；公开部署前仍应配置备份和容量策略。
 - `REBUILD_JWT_SECRET` 必须由部署环境提供，不能继续使用本地默认值。
+- Docker 构建支持通过 `PIP_INDEX_URL` 与 `NPM_REGISTRY` 注入依赖镜像；腾讯云大陆 VPS 可按网络情况覆盖为腾讯 PyPI 镜像与 `registry.npmmirror.com`，不需要改业务代码。
 - `REBUILD_ALLOWED_ORIGINS` 可通过环境变量覆盖；同源 Nginx 访问时不需要额外跨域请求。
 
 ## 本地验证方式

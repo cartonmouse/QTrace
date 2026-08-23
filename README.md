@@ -354,4 +354,5 @@ python scripts\seed_synthetic_browser_demo.py --help
 - docs\STAGE83_VITE_DEV_RENDER_RECOVERY.md：Vite 8 开发客户端黑屏定位、注入关闭和 5174 浏览器渲染验证
 - docs\STAGE84_DIRECT_LOGIN_ENTRY.md：移除启动动画、认证状态直达登录/画像和入口防回归预检
 - docs\QTRACE_ENGINEERING_NOTE.md：项目架构、Agent/RAG/Embedding/SM-2 链路、验证证据和面试讲解主线
-- 下一步：用户在本地合成账号下完成浏览器人工彩排并确认公开发布动作；真实资料外发、外部部署、正式复现和 GitHub 推送仍需单独确认。
+- docs\STAGE95_TENCENT_VPS_PUBLIC_DEMO.md：独立腾讯云 VPS 部署、镜像源覆盖、真实公网 IP/安全组和外部浏览器验收门禁
+- 下一步：完成新 VPS 的 Compose healthy、腾讯云安全组和外部浏览器合成账号验收；真实资料外发、开发者 API Key、域名/HTTPS 和 DNS rebinding 防护仍不纳入默认 Demo。

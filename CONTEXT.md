@@ -380,3 +380,9 @@ scripts/embedding_eval.py 使用固定的四份合成技术文档、四个查询
 这不是完整的 SSRF 终点：配置时 DNS 检查不能单独消除之后的 DNS rebinding，因此真正上线还必须配置云侧出站网络策略/代理、HTTPS、限流、调用预算、日志脱敏和监控。所有拒绝都发生在 Provider 请求前，LLM/Embedding API Key 不进入错误响应或日志。专项回归只使用合成地址和 fake resolver。
 
 本阶段的 Compose 运行态证据已补齐：API/Web 镜像构建成功，8080 首页与 `/api/health` 代理通过，合成账号注册成功；公开模式下对 `127.0.0.1` 的 LLM 探测返回失败但不发起上游请求，设置保存返回 400。验证完成后仅停止容器，没有删除命名卷；仍未进行外部部署。
+
+## Tencent VPS public demo deployment
+
+阶段 95 进入实际云主机部署准备：QTrace 使用独立腾讯云 Ubuntu VPS，不触碰 Qidian 旧实例。远端 Docker Hub 访问超时时，验证了腾讯容器镜像的 Python/Node 基础镜像和腾讯 PyPI、npmmirror 依赖镜像；部署文件因此新增 `PIP_INDEX_URL` 与 `NPM_REGISTRY` 构建参数，镜像源可以通过未提交的 `deploy/demo.env` 注入。为降低 npm 国内镜像缺少字体包版本造成的脆弱性，简历模块移除 `@fontsource/noto-serif-sc`，保留系统衬线字体回退。
+
+阶段 95 的“公网可访问”判定必须同时具备 Compose healthy、Nginx 首页/`/api/health` 通过、腾讯云安全组放行演示端口、控制台显示的真实公网 IPv4 和外部浏览器合成账号验收。服务器内 `10.x.x.x` 私网地址、Docker 构建成功或本机 curl 不能单独证明公网可访问。远端环境文件中的 JWT secret 不输出、不回显、不提交，访问者仍需在网页中自带 BYOK Key；Stub 只用于无 Key 的明确降级路径。
