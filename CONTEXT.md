@@ -386,3 +386,9 @@ scripts/embedding_eval.py 使用固定的四份合成技术文档、四个查询
 阶段 95 进入实际云主机部署准备：QTrace 使用独立腾讯云 Ubuntu VPS，不触碰 Qidian 旧实例。远端 Docker Hub 访问超时时，验证了腾讯容器镜像的 Python/Node 基础镜像和腾讯 PyPI、npmmirror 依赖镜像；部署文件因此新增 `PIP_INDEX_URL` 与 `NPM_REGISTRY` 构建参数，镜像源可以通过未提交的 `deploy/demo.env` 注入。为降低 npm 国内镜像缺少字体包版本造成的脆弱性，简历模块移除 `@fontsource/noto-serif-sc`，保留系统衬线字体回退。
 
 阶段 95 的“公网可访问”判定必须同时具备 Compose healthy、Nginx 首页/`/api/health` 通过、腾讯云安全组放行演示端口、控制台显示的真实公网 IPv4 和外部浏览器合成账号验收。服务器内 `10.x.x.x` 私网地址、Docker 构建成功或本机 curl 不能单独证明公网可访问。远端环境文件中的 JWT secret 不输出、不回显、不提交，访问者仍需在网页中自带 BYOK Key；Stub 只用于无 Key 的明确降级路径。
+
+## Tencent VPS browser acceptance
+
+阶段 96 已完成新 QTrace VPS 的公网浏览器验收：公网 IPv4 为 `49.232.104.202`，安全组已有 TCP 80 规则，远端 Web 运行时通过 `QTRACE_DEMO_PORT=80` 映射到主机 80。Compose 中 API 为 healthy，Nginx 首页与同源 `/api/health` 在服务器内返回 200；从外部 Chrome 打开 `http://49.232.104.202/` 后进入 `/login`，页面标题为“问迹 QTrace · 个性化面试训练”。这才是“其他人能通过浏览器打开”的证据，和本机 curl、私网地址或镜像构建证据区分开。
+
+本次 VPS 到 GitHub 的 HTTPS 拉取遇到超时，部署时对远端工作树应用了与已推送 `main` 等价的构建修复；网络恢复后更新流程必须优先 `git pull --ff-only`，不要用手工覆盖替代长期同步。当前入口仍是 HTTP 面试 Demo，不宣称正式生产上线；域名/HTTPS、限流、预算、监控、备份和更严格的 BYOK egress/SSRF 治理仍是后续门禁。

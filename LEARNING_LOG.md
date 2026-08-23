@@ -1067,3 +1067,12 @@
 - 公网构建发现 `@fontsource/noto-serif-sc@5.3.0` 在 npmmirror 返回 404。移除该非业务必需依赖并改用系统衬线字体回退；Noto Sans 仍按原方式自托管。前端 typecheck/build、Compose config 通过。
 - 云端验收必须继续区分：镜像构建成功 ≠ 容器健康 ≠ 浏览器可访问 ≠ 公网已上线。下一步只在新 VPS 上完成 Compose healthy、腾讯云安全组放行演示端口、获取真实公网 IPv4，并用合成账号从外部浏览器验收。
 - 本阶段没有读取或输出 API Key、真实简历、个人文档或浏览器密码；远端环境 secret 不回显、不提交，公网 Demo 继续采用 session BYOK 和无 Key Stub 降级。
+
+## 阶段 96：腾讯云公网浏览器验收
+
+- 新 QTrace VPS 的 Compose 构建和启动成功：`qtrace-api-1` 为 healthy，`qtrace-web-1` 已启动；服务器内首页和 `/api/health` 均返回 200。
+- 腾讯云防火墙现有 TCP 80 放行，因此没有额外修改安全组，而是在服务器私有 `deploy/demo.env` 中将 `QTRACE_DEMO_PORT` 设为 `80`。这避免了使用未放行的 8080，也没有触碰 Qidian 旧 VPS。
+- 从外部 Chrome 访问 `http://49.232.104.202/` 成功，应用自动进入 `/login`，标题为“问迹 QTrace · 个性化面试训练”。因此当前项目已经达到“他人可以通过浏览器打开并看到登录入口”的面试 Demo 验收条件。
+- VPS 到 GitHub 的 HTTPS 拉取曾在 45 秒门限内超时；为完成本次启动，远端工作树应用了与已推送 `main` 等价的最小构建修复。这个状态已记录，网络恢复后必须用 `git pull --ff-only` 重新建立可追踪同步，不能把手工远端修补当成 GitHub 提交。
+- 本阶段没有读取或输出 API Key、JWT secret、真实简历、个人文档或浏览器密码；没有调用真实 LLM API，仅保留访问者自带 Key 的 BYOK 入口和无 Key 的 Stub 降级路径。
+- 生产化仍未完成：当前是公网 IP + HTTP 80，不是域名/HTTPS/高可用服务；还需要补齐限流、预算、监控、备份和更严格的 BYOK egress/SSRF 治理。

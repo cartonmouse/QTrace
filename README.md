@@ -355,4 +355,5 @@ python scripts\seed_synthetic_browser_demo.py --help
 - docs\STAGE84_DIRECT_LOGIN_ENTRY.md：移除启动动画、认证状态直达登录/画像和入口防回归预检
 - docs\QTRACE_ENGINEERING_NOTE.md：项目架构、Agent/RAG/Embedding/SM-2 链路、验证证据和面试讲解主线
 - docs\STAGE95_TENCENT_VPS_PUBLIC_DEMO.md：独立腾讯云 VPS 部署、镜像源覆盖、真实公网 IP/安全组和外部浏览器验收门禁
-- 下一步：完成新 VPS 的 Compose healthy、腾讯云安全组和外部浏览器合成账号验收；真实资料外发、开发者 API Key、域名/HTTPS 和 DNS rebinding 防护仍不纳入默认 Demo。
+- docs\STAGE96_TENCENT_VPS_BROWSER_ACCEPTANCE.md：`49.232.104.202` 公网 IP、TCP 80 入口、Compose healthy 和外部浏览器登录页验收记录
+- 当前 Demo：`http://49.232.104.202/`；这是 HTTP 面试演示入口，不等同于域名/HTTPS/高可用生产服务。更新代码时先 `git pull --ff-only`，再使用服务器本地 `deploy/demo.env` 重建。
