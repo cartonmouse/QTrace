@@ -22,6 +22,10 @@
 
 > QTrace 将模拟面试、个人资料库、岗位匹配、长期画像、间隔复习和成长 Agent 组合成一个持续运行的训练系统。
 
+<p align="center">
+  <img src="frontend/public/qtrace-home-hero-v2-zh.png" alt="QTrace 产品闭环与系统架构" width="100%" />
+</p>
+
 > **公开 Demo**：QTrace 不提供共享 API Key。用户可以使用 Stub 模式体验基础流程，也可以在自己的账号中填写 OpenAI-compatible LLM/Embedding 配置。请勿在网页截图、Issue、日志或仓库中提交真实 API Key。
 
 ## QTrace 是什么
