@@ -15,8 +15,6 @@
   ·
   <a href="https://github.com/cartonmouse/QTrace">GitHub</a>
   ·
-  <a href="docs/RELEASE_CHECKLIST.md">发布检查清单</a>
-  ·
   <a href="THIRD_PARTY_NOTICES.md">第三方说明</a>
 </p>
 
@@ -297,7 +295,6 @@ deploy/
   demo.env.example        Demo 环境变量模板
 
 docs/
-  RELEASE_CHECKLIST.md    发布前检查和验收边界
 ~~~
 
 ## 安全与数据边界
@@ -332,7 +329,6 @@ docs/
 
 ## 文档与贡献
 
-- [发布检查清单](docs/RELEASE_CHECKLIST.md)：部署前配置、健康检查和验收边界；
 - [第三方说明](THIRD_PARTY_NOTICES.md)：参考项目和第三方代码归属。
 
 欢迎通过 Issue 反馈问题，或提交聚焦功能、测试和文档的 Pull Request。涉及 API Key、真实个人资料和部署凭据的内容请勿提交到仓库。
