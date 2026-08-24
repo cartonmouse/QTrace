@@ -21,3 +21,9 @@ frontend/tsconfig.tsbuildinfo
 deploy/demo.env
 deploy/demo.env.local
 !deploy/demo.env.example
+
+# Private interview preparation and internal engineering notes
+/CONTEXT.md
+/LEARNING_LOG.md
+/docs/QTRACE_ENGINEERING_NOTE.md
+/docs/STAGE*.md

@@ -1,36 +1,31 @@
-# 问迹 QTrace 发布收口清单
+# 问迹 QTrace 发布检查清单
 
-这份清单用于确认公开的 QTrace 仓库包含可运行代码、测试、文档和清晰边界。后续新 commit 和 push 仍然需要用户单独确认。
+这份清单用于在公开仓库或 Demo 发布前，检查代码、配置、安全边界和已知范围。
 
-## 已完成
+## 代码与构建
 
-- [x] README 包含 Windows PowerShell 后端/前端启动命令；
-- [x] README 说明 Stub 模式和 OpenAI-compatible 模式的差异；
-- [x] README 明确真实长音频、说话人分离、时间戳、知识图谱和 WebSocket 不属于当前交付；
-- [x] `.gitignore` 忽略 `data/`、SQLite、`.env`、前端依赖和构建产物；
-- [x] API Key 不会出现在 `/api/settings` 返回值；
-- [x] 所有用户级会话、画像、复习项、简历目录和 Agent 对话按 `user_id` 隔离；
-- [x] 旧 SQLite 通过 settings、sessions、profiles 和 topic_profiles 迁移继续可用；
-- [x] Stub 模式不联网，测试不依赖真实模型；
-- [x] 后端测试、Python 编译、前端类型检查和生产构建全部通过；
-- [x] 工程笔记已同步到 Obsidian，并完成 UTF-8 替换字符扫描。
-- [x] GitHub 仓库 `cartonmouse/QTrace` 已创建并发布初始版本；问迹图标已接入 favicon 和 README。
-- [x] Personal Agent 的受控 `create_learning_plan` 工具已通过用户隔离测试。
+- [ ] README 包含本地启动、Stub 模式和 OpenAI-compatible 模式说明；
+- [ ] 后端测试、Python 编译、前端类型检查和生产构建通过；
+- [ ] Docker Compose 配置可以完成 API 健康检查和 Web 静态资源服务；
+- [ ] 前端使用仓库内相对路径加载公开图片和图标资源。
 
-## 后续公开版本需要人工确认
+## 数据与安全
 
-- [ ] 检查 `git status`，确认没有真实简历、录音、API Key、运行数据库和临时账号数据；
-- [ ] 选定公开仓库的 README 截图和演示账号策略；
-- [ ] 决定是否公开参考项目链接、差异说明和学习边界；
-- [x] 确认 GitHub 仓库名、可见性和默认分支；
-- [x] 用户已明确授权初始版本和图标版本的提交、推送。
+- [ ] API Key、真实个人资料、录音、SQLite 数据和运行日志没有进入提交；
+- [ ] `.gitignore` 忽略 `.env`、`data/`、SQLite、依赖和构建产物；
+- [ ] 用户会话、画像、文档、复习项和 Agent 数据按 `user_id` 隔离；
+- [ ] 设置接口不会返回 API Key；
+- [ ] BYOK API Base 校验私网地址、回环地址和明显无效的输入。
 
-## 真实 LLM 联调前检查
+## 模型与运行态
 
-- [x] 在本地模型设置中填写 API Base、Model 和 API Key；
-- [x] 验证 Personal Agent 的规划调用和回答调用；
-- [x] 验证专项动态出题的 JSON `questions` 数组；
-- [x] 验证一次真实面试追问；
-- [x] 验证真实复盘 JSON 和复盘会话写回；
-- [x] API 失败时补充超时、网络错误、限流和 5xx 有界重试策略；
-- [x] 联调过程中没有输出 API Key，也没有上传真实简历文件。
+- [ ] Stub 模式默认不联网，测试不依赖真实模型；
+- [ ] OpenAI-compatible LLM 与 Embedding 配置失败时返回可观察的错误状态；
+- [ ] 本地语义模式使用 `local_files_only`，不会因为缺少模型而偷偷联网；
+- [ ] 公开 Demo 明确说明 BYOK、数据持久化和并发限制。
+
+## 当前范围
+
+- [ ] 扫描 PDF OCR、真实长音频、说话人识别、时间戳对齐和完整 WebSocket 实时链路不作为已交付能力；
+- [ ] 外部向量数据库、密钥托管、限流、预算和审计需要独立的生产化设计；
+- [ ] 所有公开截图、示例数据和验证记录均使用合成内容。
