@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const REPO = "clearsnowsong/QTrace";
+const REPO = "cartonmouse/QTrace";
 const CACHE_KEY = "gh-stars";
 
 // GitHub 星标胶囊:实时拉 star 数,先用本地缓存的上次值渲染再后台刷新,避免闪动。

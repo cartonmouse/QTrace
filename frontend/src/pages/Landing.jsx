@@ -538,7 +538,7 @@ export default function Landing() {
           <p className="text-xs text-dim">从刷题到实战的 AI 技术面试陪练系统</p>
           <div className="flex gap-6 text-xs">
             <a
-              href="https://github.com/clearsnowsong/QTrace"
+              href="https://github.com/cartonmouse/QTrace"
               target="_blank"
               rel="noreferrer"
               className="text-dim transition-colors hover:text-text"
@@ -546,7 +546,7 @@ export default function Landing() {
               GitHub
             </a>
             <a
-              href="https://github.com/clearsnowsong/QTrace"
+              href="https://github.com/cartonmouse/QTrace"
               target="_blank"
               rel="noreferrer"
               className="text-dim transition-colors hover:text-text"

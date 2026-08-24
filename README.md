@@ -254,10 +254,6 @@ Set-Location ..
 # 只读发布/路由预检
 python scripts\repository_preflight.py
 python scripts\public_demo_preflight.py
-python scripts\qtrace_shell_preflight.py
-python scripts\qtrace_interview_preflight.py
-python scripts\qtrace_profile_preflight.py
-python scripts\qtrace_settings_preflight.py
 ~~~
 
 健康检查：
